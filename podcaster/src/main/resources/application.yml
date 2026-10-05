@@ -1,0 +1,9 @@
+greeting:
+  message: "hello"
+quarkus:
+  langchain4j:
+    easy-rag:
+      reuse-embeddings:
+        enabled: true
+      path: "easy-rag-catalog"
+    timeout: "60s"
