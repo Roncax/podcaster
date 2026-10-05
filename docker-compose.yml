@@ -1,0 +1,57 @@
+services:
+  podcaster:
+    build:
+      context: .
+      dockerfile: docker/podcaster/Dockerfile
+    env_file: .env
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/podcaster
+      PIPER_URL: http://piper:5000
+    ports:
+      - "${PODCASTER_PORT:-8080}:8080"
+    volumes:
+      - audio:/data/audio
+      - work:/data/work
+    depends_on:
+      postgres:
+        condition: service_healthy
+      piper:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: podcaster
+      POSTGRES_USER: ${DB_USER:-podcaster}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-podcaster}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-podcaster} -d podcaster"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  piper:
+    build: docker/piper
+    environment:
+      PIPER_DEFAULT_VOICE: ${PIPER_DEFAULT_VOICE:-it_IT-paola-medium}
+      PIPER_EXTRA_VOICES: ${PIPER_EXTRA_VOICES:-}
+    volumes:
+      - voices:/voices
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    profiles: ["ollama"]
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  audio: {}
+  work: {}
+  pgdata: {}
+  voices: {}
+  ollama: {}

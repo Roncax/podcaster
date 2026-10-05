@@ -1,111 +1,59 @@
-# podcaster
+# Podcaster
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+Self-hosted service that turns news sources into a daily ~20-minute podcast episode.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+**Pipeline per Show:** ingest (RSS + pluggable connectors, full-text extraction) → rank & cluster stories (LLM) → write a single-narrator script (LLM) → synthesize with Piper TTS → publish to a private podcast feed.
 
-## Running the application in dev mode
+## Quick start
 
-You can run your application in dev mode that enables live coding using:
+1. `cp .env.example .env` and set `PODCASTER_API_KEY`, `PODCASTER_BASE_URL`, the DB password, and enable at least one LLM slot.
+2. `docker compose up -d --build` (add `--profile ollama` for a local Ollama).
+3. Open `http://<server>:8080/admin`, log in with the API key, create a Show, add sources, press **Run now**.
+4. Subscribe to `http://<server>:8080/feeds/<slug>.xml` in your podcast app (AntennaPod, Pocket Casts, …). Keep the service on your LAN/VPN: feeds and audio are not authenticated.
 
-```shell script
-./mvnw quarkus:dev
-```
+Example sources: ANSA `https://www.ansa.it/sito/ansait_rss.xml`, Il Post sections `https://www.ilpost.it/italia/feed/`, `https://www.ilpost.it/mondo/feed/`.
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+## LLM slots
 
-## Packaging and running the application
+| Slot | Provider | Env |
+|---|---|---|
+| `gpt` | OpenAI-compatible | `GPT_ENABLED`, `GPT_API_KEY`, `GPT_BASE_URL`, `GPT_MODEL` |
+| `claude` | Anthropic | `CLAUDE_ENABLED`, `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` |
+| `gemini` | Google AI Gemini | `GEMINI_ENABLED`, `GEMINI_API_KEY`, `GEMINI_MODEL` |
+| `local` | Ollama | `LOCAL_ENABLED`, `OLLAMA_BASE_URL`, `LOCAL_MODEL` |
 
-The application can be packaged using:
+Each Show picks a writer model and optionally a cheaper ranker model by slot name. Changing the model behind a slot = edit `.env` + restart. Adding a new slot = add it to `application.yml` and rebuild.
 
-```shell script
-./mvnw package
-```
+## Voices
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+Piper voices are downloaded on first start (`PIPER_DEFAULT_VOICE`, `PIPER_EXTRA_VOICES`). Browse voices at https://huggingface.co/rhasspy/piper-voices. Episode length self-calibrates per voice after a couple of episodes.
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
+## Adding a source connector
 
-If you want to build an _über-jar_, execute the following command:
+Implement `org.roncax.podcaster.ingestion.SourceConnector` as an `@ApplicationScoped` bean:
 
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
-```
-
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
-
-## Creating a native executable
-
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
-```
-
-You can then execute your native executable with: `./target/podcaster-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
-## Related Guides
-
-- REST ([guide](https://quarkus.io/guides/rest)): Build RESTful web services and APIs using Jakarta REST (formerly JAX-RS)
-- Hibernate ORM ([guide](https://quarkus.io/guides/hibernate-orm)): Object-relational mapping with JPA/Hibernate for relational database access
-- YAML Configuration ([guide](https://quarkus.io/guides/config-yaml)): Use YAML to configure your Quarkus application
-- LangChain4j OpenAI ([guide](https://docs.quarkiverse.io/quarkus-langchain4j/dev/index.html)): Provides the basic integration with LangChain4j
-- LangChain4j Easy RAG ([guide](https://docs.quarkiverse.io/quarkus-langchain4j/dev/rag-easy-rag.html)): Provides the Easy RAG functionality with LangChain4j
-
-## Provided Code
-
-### YAML Config
-
-Configure your application with YAML
-
-[Related guide section...](https://quarkus.io/guides/config-reference#configuration-examples)
-
-The Quarkus application configuration is located in `src/main/resources/application.yml`.
-
-### Hibernate ORM
-
-Create your first JPA entity
-
-[Related guide section...](https://quarkus.io/guides/hibernate-orm)
-
-
-
-
-### LangChain4j Easy RAG
-
-This code is a very basic sample service to start developing with Quarkus LangChain4j using Easy RAG.
-
-This code is set up to use OpenAI as the LLM, thus you need to set the `QUARKUS_LANGCHAIN4J_OPENAI_API_KEY` environment variable to your OpenAI API key.
-
-In `./easy-rag-catalog/` you can find a set of example documents that will be used to create the RAG index which the bot (`src/main/java/org/acme/Bot.java`) will ingest.
-
-On first run, the bot will create the RAG index and store it in `easy-rag-catalog.json` file and reuse it on subsequent runs.
-This can be disabled by setting the `quarkus.langchain4j.easy-rag.reuse-embeddings.enabled` property to `false`.
-
-Add it to a Rest endpoint:
 ```java
-    @Inject
-    Bot bot;
-    
-    @POST
-    @Produces(MediaType.TEXT_PLAIN)
-    public String chat(String q) {
-        return bot.chat(q);
+@ApplicationScoped
+public class ExampleSiteConnector implements SourceConnector {
+    @Inject HttpFetcher fetcher;
+
+    public String type() { return "site:example"; }
+
+    public List<RawItem> fetch(SourceConfig config, Instant since) throws Exception {
+        // fetch listing page(s), return RawItem(url, title, author, publishedAt, summary, fullText)
     }
+}
 ```
 
-In a more complete example, you would have a web interface and use websockets that would provide more interactive experience, see [ChatBot Easy RAG Sample](https://github.com/quarkiverse/quarkus-langchain4j/tree/main/samples/chatbot-easy-rag) for such an example.
-### REST
+It then appears in the admin UI connector list. For cleaner article text on a specific site, implement `ContentExtractor` instead (see `AnsaContentExtractor`).
 
-Easily start your REST Web Services
+## API
 
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
+REST API under `/api` (header `X-API-Key`), documented at `/q/swagger-ui`.
+
+## Development
+
+Requires JDK 25 and ffmpeg on `PATH`.
+
+- `./mvnw test` — full test suite. Tests start an embedded PostgreSQL (no Docker needed) and never call a real LLM, Piper or the internet.
+- `./mvnw quarkus:dev` — dev mode (Dev UI at `/q/dev-ui`). Uses Dev Services PostgreSQL, which needs Docker; alternatively set `DB_URL`, `DB_USER`, `DB_PASSWORD` to an existing database, and point `PIPER_URL` at a running Piper.
