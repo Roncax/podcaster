@@ -43,6 +43,11 @@ quarkus:
     password: ${DB_PASSWORD:podcaster}
     jdbc:
       url: ${DB_URL:jdbc:postgresql://postgres:5432/podcaster}
+  hibernate-orm:
+    physical-naming-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+    mapping:
+      format:
+        global: ignore   # JSON columns use Hibernate's own Jackson mapper, not the REST one
   flyway:
     migrate-at-start: true
   scheduler:
