@@ -1,9 +1,131 @@
-greeting:
-  message: "hello"
+podcaster:
+  api-key: ${PODCASTER_API_KEY:change-me}
+  base-url: ${PODCASTER_BASE_URL:http://localhost:8080}
+  storage:
+    root: ${PODCASTER_AUDIO_DIR:/data/audio}
+    work-dir: ${PODCASTER_WORK_DIR:/data/work}
+  http:
+    user-agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36"
+    timeout: 20s
+    politeness-delay: 1s
+    attempts: 3
+    retry-delay: 1s
+  selection:
+    max-candidates: 80
+    first-run-window: 24h
+  script:
+    intro-outro-words: 200
+    min-segment-words: 250
+    max-segment-words: 900
+    max-source-chars: 12000
+  tts:
+    piper-url: ${PIPER_URL:http://piper:5000}
+    default-wpm: 150
+    chunk-chars: 500
+    parallelism: 2
+    chunk-pause: 400ms
+    segment-pause: 1200ms
+    ffmpeg: ffmpeg
+    bitrate: 64k
+    attempts: 3
+    retry-delay: 2s
+  runs:
+    workers: 2
+  telegram:
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
+    chat-id: ${TELEGRAM_CHAT_ID:}
+    api-url: https://api.telegram.org
+
 quarkus:
+  datasource:
+    db-kind: postgresql
+    username: ${DB_USER:podcaster}
+    password: ${DB_PASSWORD:podcaster}
+    jdbc:
+      url: ${DB_URL:jdbc:postgresql://postgres:5432/podcaster}
+  flyway:
+    migrate-at-start: true
+  scheduler:
+    cron-type: unix
+    start-mode: forced
+  swagger-ui:
+    always-include: true
+  arc:
+    unremovable-types: dev.langchain4j.model.chat.ChatModel
   langchain4j:
-    easy-rag:
-      reuse-embeddings:
-        enabled: true
-      path: "easy-rag-catalog"
-    timeout: "60s"
+    devservices:
+      enabled: false
+    timeout: 180s
+    # --- model slots: name -> provider (build time) ---
+    gpt:
+      chat-model:
+        provider: openai
+    claude:
+      chat-model:
+        provider: anthropic
+    gemini:
+      chat-model:
+        provider: ai-gemini
+    local:
+      chat-model:
+        provider: ollama
+    # --- per-slot provider settings (runtime, env driven) ---
+    openai:
+      gpt:
+        enable-integration: ${GPT_ENABLED:false}
+        api-key: ${GPT_API_KEY:unset}
+        base-url: ${GPT_BASE_URL:https://api.openai.com/v1/}
+        chat-model:
+          model-name: ${GPT_MODEL:gpt-5}
+    anthropic:
+      claude:
+        enable-integration: ${CLAUDE_ENABLED:false}
+        api-key: ${ANTHROPIC_API_KEY:unset}
+        chat-model:
+          model-name: ${CLAUDE_MODEL:claude-sonnet-5-5}
+          max-tokens: 8192
+    ai:
+      gemini:
+        gemini:
+          enable-integration: ${GEMINI_ENABLED:false}
+          api-key: ${GEMINI_API_KEY:unset}
+          chat-model:
+            model-id: ${GEMINI_MODEL:gemini-2.5-flash}
+    ollama:
+      local:
+        enable-integration: ${LOCAL_ENABLED:false}
+        base-url: ${OLLAMA_BASE_URL:http://ollama:11434}
+        chat-model:
+          model-id: "${LOCAL_MODEL:qwen3:14b}"
+          num-predict: 4096
+
+"%dev":
+  podcaster:
+    storage:
+      root: target/dev-audio
+      work-dir: target/dev-work
+  quarkus:
+    datasource:
+      jdbc:
+        url: ""   # empty -> Dev Services PostgreSQL
+
+"%test":
+  podcaster:
+    api-key: test-key
+    base-url: http://podcaster.test
+    storage:
+      root: target/test-audio
+      work-dir: target/test-work
+    http:
+      politeness-delay: 0s
+      retry-delay: 10ms
+    tts:
+      retry-delay: 10ms
+      parallelism: 2
+    telegram:
+      bot-token: test-token
+      chat-id: "42"
+  quarkus:
+    datasource:
+      devservices:
+        enabled: false   # tests start embedded PostgreSQL via PostgresResource
