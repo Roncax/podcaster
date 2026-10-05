@@ -79,4 +79,20 @@ class ScriptWriterTest {
         new ScriptWriter(1000).write(model, show(), outline, big, LocalDate.now());
         assertFalse(model.userMessage(0).contains("x".repeat(600)));
     }
+
+    @Test
+    void segmentCutOffByTokenLimitFails() {
+        dev.langchain4j.model.chat.ChatModel truncating = new dev.langchain4j.model.chat.ChatModel() {
+            @Override
+            public dev.langchain4j.model.chat.response.ChatResponse doChat(dev.langchain4j.model.chat.request.ChatRequest request) {
+                return dev.langchain4j.model.chat.response.ChatResponse.builder()
+                        .aiMessage(dev.langchain4j.data.message.AiMessage.from("A segment that stops mid"))
+                        .finishReason(dev.langchain4j.model.output.FinishReason.LENGTH)
+                        .build();
+            }
+        };
+        GenerationException ex = assertThrows(GenerationException.class,
+                () -> new ScriptWriter(12000).write(truncating, show(), outline, items, LocalDate.now()));
+        assertTrue(ex.getMessage().contains("token limit"), ex.getMessage());
+    }
 }

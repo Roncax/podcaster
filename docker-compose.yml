@@ -7,6 +7,7 @@ services:
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/podcaster
       PIPER_URL: http://piper:5000
+      TZ: ${TZ:-Europe/Rome}   # cron schedules and episode dates use this zone
     ports:
       - "${PODCASTER_PORT:-8080}:8080"
     volumes:

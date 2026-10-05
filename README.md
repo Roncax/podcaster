@@ -22,6 +22,8 @@ Example sources: ANSA `https://www.ansa.it/sito/ansait_rss.xml`, Il Post section
 | `gemini` | Google AI Gemini | `GEMINI_ENABLED`, `GEMINI_API_KEY`, `GEMINI_MODEL` |
 | `local` | Ollama | `LOCAL_ENABLED`, `OLLAMA_BASE_URL`, `LOCAL_MODEL` |
 
+Cron schedules (5-field Unix syntax, e.g. `0 7 * * *`) and episode dates use the container timezone `TZ` (default `Europe/Rome`).
+
 Each Show picks a writer model and optionally a cheaper ranker model by slot name. Changing the model behind a slot = edit `.env` + restart. Adding a new slot = add it to `application.yml` and rebuild.
 
 ## Voices

@@ -125,4 +125,21 @@ class RunPipelineTest {
         TestData.awaitRun(id);
         assertThrows(IllegalStateException.class, () -> launcher.retry(id));
     }
+
+    @Test
+    void errorThrownInStageStillFailsTheRun() {
+        stubFeed("/p1");
+        io.quarkus.test.junit.QuarkusMock.installMockForType(new org.roncax.podcaster.tts.AudioAssembler("ffmpeg", "64k") {
+            @Override
+            public org.roncax.podcaster.tts.AssembledAudio assemble(List<java.nio.file.Path> chunks, List<java.time.Duration> pauses,
+                    java.nio.file.Path out, org.roncax.podcaster.tts.Mp3Tags tags) {
+                throw new OutOfMemoryError("simulated");
+            }
+        }, org.roncax.podcaster.tts.AudioAssembler.class);
+
+        Run run = TestData.awaitRun(launcher.launch(show.id, RunTrigger.MANUAL));
+
+        assertEquals(RunStatus.FAILED, run.status);
+        assertTrue(run.error.contains("simulated"), run.error);
+    }
 }

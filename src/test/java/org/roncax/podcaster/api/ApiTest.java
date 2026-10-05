@@ -36,7 +36,7 @@ class ApiTest {
     }
 
     private RequestSpecification api() {
-        return given().header("X-API-Key", "test-key").contentType(ContentType.JSON);
+        return given().header("X-API-Key", "test-api-key-0123456789").contentType(ContentType.JSON);
     }
 
     private Map<String, Object> showJson(String slug) {

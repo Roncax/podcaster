@@ -12,10 +12,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.roncax.podcaster.config.PodcasterConfig;
 import org.roncax.podcaster.domain.*;
+import org.jboss.logging.Logger;
 import org.roncax.podcaster.util.Exceptions;
 
 @ApplicationScoped
 public class RunLauncher {
+    private static final Logger LOG = Logger.getLogger(RunLauncher.class);
     /** Re-read the hour before the previous run so items published while it ran are not missed (dedupe prevents repeats). */
     static final Duration OVERLAP = Duration.ofHours(1);
 
@@ -54,7 +56,7 @@ public class RunLauncher {
             if (Exceptions.isUniqueViolation(e)) throw new RunAlreadyActiveException(showId);
             throw e;
         }
-        executor.submit(() -> orchestrator.execute(runId));
+        submit(runId);
         return runId;
     }
 
@@ -78,7 +80,7 @@ public class RunLauncher {
             if (Exceptions.isUniqueViolation(e)) throw new RunAlreadyActiveException(showId[0]);
             throw e;
         }
-        executor.submit(() -> orchestrator.execute(runId));
+        submit(runId);
     }
 
     private Instant since(long showId) {
@@ -86,5 +88,15 @@ public class RunLauncher {
                 .firstResultOptional()
                 .map(r -> r.startedAt.minus(OVERLAP))
                 .orElse(Instant.now().minus(config.selection().firstRunWindow()));
+    }
+
+    private void submit(long runId) {
+        executor.submit(() -> {
+            try {
+                orchestrator.execute(runId);
+            } catch (Throwable t) {
+                LOG.errorf(t, "Run %d crashed outside its stages; it may stay RUNNING until restart", runId);
+            }
+        });
     }
 }

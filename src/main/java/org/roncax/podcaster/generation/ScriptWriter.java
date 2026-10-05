@@ -1,6 +1,9 @@
 package org.roncax.podcaster.generation;
 
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.output.FinishReason;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.LocalDate;
@@ -33,7 +36,11 @@ public class ScriptWriter {
         for (OutlineSegment seg : outline.segments()) {
             List<Item> sourceItems = seg.itemIds().stream().map(items::get).filter(Objects::nonNull).toList();
             String prompt = Prompts.segment(show.language, seg.headline(), seg.words(), sources(sourceItems), previousTail, show.focusPrompt);
-            String text = TtsTextNormalizer.normalize(model.chat(prompt), show.language);
+            ChatResponse response = model.chat(UserMessage.from(prompt));
+            if (response.finishReason() == FinishReason.LENGTH) {
+                throw new GenerationException("Segment '" + seg.headline() + "' was cut off by the model's token limit");
+            }
+            String text = TtsTextNormalizer.normalize(response.aiMessage().text(), show.language);
             if (text.isBlank()) throw new GenerationException("Model returned an empty segment for '" + seg.headline() + "'");
             segments.add(text);
             previousTail = tail(text);

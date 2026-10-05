@@ -39,7 +39,7 @@ public class RunOrchestrator {
             try {
                 LOG.infof("Run %d (show %d): %s", runId, run.showId, run.stage);
                 result = stages.get(run.stage).execute(run);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 fail(run, e);
                 return;
             }
@@ -59,12 +59,15 @@ public class RunOrchestrator {
         }
     }
 
-    private void fail(Run run, Exception e) {
+    private void fail(Run run, Throwable e) {
         String error = run.stage + ": " + Exceptions.message(e);
         LOG.errorf(e, "Run %d failed", run.id);
-        Show show = QuarkusTransaction.requiringNew().call(() -> Show.<Show>findById(run.showId));
-        if (show != null) notifier.runFailed(show, run, error);
-        finish(run.id, RunStatus.FAILED, error);
+        try {
+            Show show = QuarkusTransaction.requiringNew().call(() -> Show.<Show>findById(run.showId));
+            if (show != null) notifier.runFailed(show, run, error);
+        } finally {
+            finish(run.id, RunStatus.FAILED, error);
+        }
     }
 
     private void finish(long runId, RunStatus status, String error) {

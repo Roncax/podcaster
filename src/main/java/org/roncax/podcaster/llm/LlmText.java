@@ -11,7 +11,11 @@ public final class LlmText {
 
     public static String clean(String raw) {
         if (raw == null) return "";
-        String s = THINK.matcher(raw).replaceAll("").trim();
+        String s = THINK.matcher(raw).replaceAll("");
+        int close = s.lastIndexOf("</think>");
+        if (close >= 0) s = s.substring(close + "</think>".length()); // template put <think> in the prompt
+        if (s.contains("<think>")) throw new GenerationException("Model output was truncated inside its reasoning block");
+        s = s.trim();
         Matcher m = FENCE.matcher(s);
         if (m.matches()) s = m.group(1).trim();
         return s;

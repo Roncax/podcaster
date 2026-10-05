@@ -36,9 +36,11 @@ public class OutlinePlanner {
         double weightSum = chosen.stream().mapToInt(c -> Math.max(1, c.importance())).sum();
         List<OutlineSegment> segments = new ArrayList<>();
         int sum = 0;
+        // every segment gets the minimum; only the remainder is shared by importance, so the total stays on budget
+        int extra = Math.max(0, body - chosen.size() * minSegmentWords);
         for (Cluster c : chosen) {
-            int words = (int) Math.round(body * Math.max(1, c.importance()) / weightSum);
-            words = Math.max(minSegmentWords, Math.min(maxSegmentWords, words));
+            int words = minSegmentWords + (int) Math.round(extra * Math.max(1, c.importance()) / weightSum);
+            words = Math.min(maxSegmentWords, words);
             segments.add(new OutlineSegment(c.headline(), c.itemIds(), words));
             sum += words;
         }

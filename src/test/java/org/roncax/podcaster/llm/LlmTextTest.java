@@ -29,4 +29,14 @@ class LlmTextTest {
     void nullIsEmpty() {
         assertEquals("", LlmText.clean(null));
     }
+
+    @Test
+    void dropsReasoningBeforeOrphanClosingTag() {
+        assertEquals("Answer.", LlmText.clean("I should restate {\"x\":1} first...</think>\n\nAnswer."));
+    }
+
+    @Test
+    void unclosedThinkBlockIsTruncatedOutput() {
+        assertThrows(GenerationException.class, () -> LlmText.clean("<think>still reasoning when the token limit hit"));
+    }
 }

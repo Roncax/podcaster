@@ -26,7 +26,7 @@ class AdminTest {
     }
 
     private RequestSpecification admin() {
-        return given().cookie("podcaster_key", "test-key").redirects().follow(false);
+        return given().cookie("podcaster_key", "test-api-key-0123456789").redirects().follow(false);
     }
 
     @Test
@@ -36,8 +36,8 @@ class AdminTest {
 
     @Test
     void loginSetsCookie() {
-        given().redirects().follow(false).formParam("key", "test-key").post("/admin/login")
-                .then().statusCode(303).cookie("podcaster_key", "test-key");
+        given().redirects().follow(false).formParam("key", "test-api-key-0123456789").post("/admin/login")
+                .then().statusCode(303).cookie("podcaster_key", "test-api-key-0123456789");
         given().formParam("key", "nope").post("/admin/login").then().statusCode(200).body(containsString("Wrong key"));
     }
 
