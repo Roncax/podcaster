@@ -109,29 +109,34 @@ Models are declared as quarkus-langchain4j named models. Extensions: `quarkus-la
 ```yaml
 quarkus:
   langchain4j:
-    writer:
+    # slot name → provider (build time)
+    claude:
       chat-model:
         provider: anthropic
-    ranker:
+    local:
       chat-model:
         provider: ollama
+    # provider settings per slot (runtime, env-driven)
     anthropic:
-      writer:
-        api-key: ${ANTHROPIC_API_KEY}
+      claude:
+        enable-integration: ${CLAUDE_ENABLED:false}
+        api-key: ${ANTHROPIC_API_KEY:unset}
         chat-model:
-          model-name: claude-sonnet-5-5
+          model-name: ${CLAUDE_MODEL:claude-sonnet-5-5}
           max-tokens: 4096
     ollama:
-      ranker:
-        base-url: http://ollama:11434
+      local:
+        enable-integration: ${LOCAL_ENABLED:false}
+        base-url: ${OLLAMA_BASE_URL:http://ollama:11434}
         chat-model:
-          model-name: qwen3:14b
+          model-name: ${LOCAL_MODEL:qwen3:14b}
 ```
+Slot names deliberately differ from provider config prefixes (`openai`, `anthropic`, `ai.gemini`, `ollama`) to avoid key collisions. Shipped slots: `gpt` (openai-compatible, configurable base URL), `claude` (anthropic), `gemini` (ai-gemini), `local` (ollama).
 
-- `ChatModelRegistry` resolves `@ModelName(name) ChatModel` via CDI `Instance` and exposes `availableNames()` (read from config) for validation and UI dropdowns.
-- Show validation rejects unknown model names.
-- Adding/changing a model = config edit + restart. Switching a Show's model = DB edit.
-- Verify during implementation: named-model beans are resolvable programmatically (not removed as unused beans); mark unremovable if needed.
+- Model **names and their providers are build-time config** in quarkus-langchain4j (beans are generated at build). The shipped `application.yml` therefore defines four **model slots** — `gpt`, `claude`, `gemini`, `local` — whose runtime properties (model name, base URL, API key, temperature, timeout) come from env vars, and each slot is switched on/off at runtime with `enable-integration` (`*_ENABLED` env vars, default `false`). Swapping the model behind a slot = env change + restart; adding a new slot name = config edit + image rebuild.
+- `ChatModelRegistry` resolves `@ModelName(name) ChatModel` via CDI `Instance` and exposes `availableNames()` (slots whose integration is enabled) for validation and UI dropdowns. `ChatModel` is marked unremovable (`quarkus.arc.unremovable-types`) so slot beans survive unused-bean removal.
+- Show validation rejects unknown or disabled model names.
+- Switching a Show's model = DB edit.
 
 ## 4. Data model
 
@@ -157,11 +162,11 @@ All tables have `id` (bigserial/UUID), `created_at`, `updated_at`. Migrations vi
 **run**
 - `show_id`, `trigger` (`SCHEDULED` | `MANUAL`)
 - `stage` (`INGEST` | `SELECT` | `SCRIPT` | `TTS` | `PUBLISH`), `status` (`RUNNING` | `DONE` | `FAILED` | `SKIPPED`)
-- `attempt`, `error`, `started_at`, `finished_at`
+- `since` (ingestion window start, fixed at run creation so retries use the same window), `attempt`, `error`, `started_at`, `finished_at`
 
 **episode**
 - `run_id`, `show_id`, `title`, `description` (show notes incl. source links)
-- `selection` (JSONB: clusters, ranking, chosen item ids), `outline` (JSONB: segments + word budgets), `script` (text)
+- `selection` (JSONB: clusters, ranking, chosen item ids), `outline` (JSONB: segments + word budgets), `script_parts` (JSONB array: intro, segments, outro — TTS-normalized), `script` (text: parts joined, for display)
 - `audio_path`, `duration_seconds`, `size_bytes`, `published_at` (null until PUBLISH)
 
 **voice_calibration**
@@ -172,7 +177,7 @@ All tables have `id` (bigserial/UUID), `created_at`, `updated_at`. Migrations vi
 A Run moves through stages; each stage persists its output before advancing. Retry resumes at the failed stage using persisted outputs.
 
 1. **INGEST**
-   - `since` = `published_at` of the Show's last published episode, else now − 24h.
+   - `since` = start time of the Show's last successful (`DONE`) run minus a 1 h overlap (so items published while that run was executing are not missed; dedupe prevents repeats), else now − 24h. Fixed at run creation (`run.since`).
    - For each enabled source: `fetch(config, since)`; dedupe by (`show_id`, `url`) and by `content_hash` of normalized title+text; extract full text when `fetch_full_text` and the connector doesn't provide it.
    - Per-source failures are recorded on `source.last_error` and included in a Telegram warning; the run fails only if every source fails.
 2. **SELECT**
@@ -181,15 +186,15 @@ A Run moves through stages; each stage persists its output before advancing. Ret
    - One ranker-model call with titles + first ~500 chars per item + focus prompt → structured JSON: clusters (item ids, headline, importance score). Stored in `episode.selection`.
 3. **SCRIPT** (writer model, Show language, spoken style, no markdown/URLs)
    - Word budget = `target_duration_minutes × words_per_minute(voice, length_scale)`.
-   - **Outline** call: pick top clusters that fit the budget, allocate words per segment (min ~250 words/segment). With few clusters the total budget shrinks — no padding.
+   - **Outline** (deterministic, no LLM call): reserve ~200 words for intro/outro, take clusters by importance while each gets ≥ 250 words, allocate the rest proportionally to importance, capped at 900 words per segment. With few clusters the total shrinks — no padding. Stored in `episode.outline`.
    - **Segment** calls: one per segment, given cluster source texts (truncated to a per-call context limit), word allocation, and the previous segment's closing lines for transitions.
    - **Intro/outro** call after segments, plus episode title and short description.
    - **TTS normalization**: strip markdown remnants and URLs, normalize symbols and abbreviations, collapse whitespace.
 4. **TTS**
    - Split script into chunks ≤ ~500 chars on sentence boundaries; segment boundaries marked for longer pauses.
    - Synthesize via Piper HTTP with voice + `length_scale`, parallelism configurable (default 2). WAV chunks are kept in a per-run temp dir so a retry only resynthesizes missing chunks.
-   - ffmpeg: concat with silence (≈0.4 s between chunks, ≈1.2 s between segments), encode MP3 mono 64 kbps with ID3 tags (show, title, date).
-   - ffprobe measures duration → update `voice_calibration` (`wpm = words / minutes`, exponential moving average, α = 0.3).
+   - Concatenate the WAV PCM in Java with silence (≈0.4 s between chunks, ≈1.2 s between segments); duration is computed exactly from the PCM length. ffmpeg encodes MP3 mono 64 kbps with ID3 tags (show, title, date).
+   - Update `voice_calibration` (`wpm = words / minutes`; first sample replaces the default, then exponential moving average, α = 0.3).
 5. **PUBLISH**
    - Store at `/data/audio/<show-slug>/<episode-id>.mp3`, set `audio_path`, `size_bytes`, `duration_seconds`, `published_at`.
    - Mark selected items `used_in_episode_id`.
@@ -231,11 +236,11 @@ Qute templates + htmx (no JS build). Pages: Shows list/edit (dropdowns for model
 
 ### 6.4 Scheduling
 
-Quarkus Scheduler programmatic API: register one job per enabled Show at startup; re-register on Show create/update/delete. Missed runs during downtime are not caught up.
+Cron expressions use standard 5-field Unix syntax (`quarkus.scheduler.cron-type=unix`, `start-mode=forced` since there are no `@Scheduled` methods). Quarkus Scheduler programmatic API: register one job per enabled Show at startup; re-register on Show create/update/delete. Missed runs during downtime are not caught up.
 
 ## 7. Error handling
 
-- External calls have timeouts and retries with exponential backoff: LangChain4j built-in retries for LLMs; SmallRye Fault Tolerance (`@Retry`, `@Timeout`) for Piper and HTTP fetches.
+- External calls have timeouts and retries with exponential backoff: LangChain4j's client timeouts for LLMs; a small shared `Retries` helper (configurable attempts/delay) for Piper, HTTP fetches and the ranker's JSON repair round-trip.
 - A stage failing after retries → run `FAILED` with error message; `Notifier` sends Telegram message (show, stage, error, run URL).
 - Partial source failures → Telegram warning, run continues.
 - Structured-output parse failure from the ranker → one repair retry with the parse error in the prompt, then fail.
@@ -245,7 +250,7 @@ Quarkus Scheduler programmatic API: register one job per enabled Show at startup
 
 - `docker-compose.yml`: `podcaster`, `postgres`, `piper`, optional `ollama` (profile `ollama`).
 - `podcaster` image: from `src/main/docker/Dockerfile.jvm`, adding ffmpeg. Volume `/data/audio`. Port 8080.
-- `piper` image: `docker/piper/Dockerfile` — python-slim, `pip install piper-tts[http]`, runs the Piper HTTP server with `--data-dir /voices`. Internal network only. Exact request contract (text, voice, length_scale params) to be confirmed against the installed `piper-tts` version during implementation.
+- `piper` image: `docker/piper/Dockerfile` — python-slim, `pip install piper-tts[http]==1.8.0`, runs `python -m piper.http_server --data-dir /voices -m $PIPER_DEFAULT_VOICE` (downloads the default voice on first start). Internal network only. API (verified against piper1-gpl source): `POST /synthesize` JSON `{text, voice, length_scale}` → WAV; `GET /voices` → object keyed by voice id.
 - Config via `.env` (template `.env.example`): DB credentials, LLM API keys, `PODCASTER_API_KEY`, Telegram settings, base URL used in feed links.
 - Voices: Piper `.onnx` + `.onnx.json` files downloaded into the voices volume (documented in README).
 
