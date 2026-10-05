@@ -1,5 +1,6 @@
 package org.roncax.podcaster.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -17,4 +18,9 @@ public class Run extends PanacheEntityBase {
     public String error;
     public Instant startedAt = Instant.now();
     public Instant finishedAt;
+
+    @JsonIgnore
+    public boolean isFailed() {
+        return status == RunStatus.FAILED;
+    }
 }

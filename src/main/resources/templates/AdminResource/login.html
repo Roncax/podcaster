@@ -1,0 +1,13 @@
+{#include base}
+{#title}Log in · Podcaster{/title}
+{#body}
+<article>
+  <h1>Podcaster</h1>
+  {#if error}<p role="alert">{error}</p>{/if}
+  <form method="post" action="/admin/login">
+    <label>API key <input type="password" name="key" required autofocus></label>
+    <button type="submit">Log in</button>
+  </form>
+</article>
+{/body}
+{/include}
