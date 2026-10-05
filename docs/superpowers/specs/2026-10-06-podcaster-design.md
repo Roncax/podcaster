@@ -28,7 +28,8 @@ Single user, personal use, runs on the owner's servers via Docker Compose, reach
 | LLM config | Native quarkus-langchain4j **named models** in `application.yml`; Show references model names |
 | Show/source management | PostgreSQL + REST API + simple admin UI (Qute + htmx) |
 | Ingestion depth | Full article text extraction (Jsoup, static HTML only) |
-| Scraping | One Java class per site implementing `SourceConnector` |
+| Scraping | One Java class per site implementing `SourceConnector`; site-specific `ContentExtractor`s for cleaner article text |
+| v1 sources | Generic `rss` + ANSA extractor; covers ANSA and Il Post (section feeds). Reddit deferred |
 | Format | Single narrator, news-bulletin style |
 | TTS | Piper HTTP server, bundled as a container |
 | Network | LAN/VPN only |
@@ -75,7 +76,25 @@ public interface SourceConnector {
 - Site plugins (`site:<name>`): one class per site; config is free-form JSONB interpreted by the plugin. A plugin may return full text directly or leave it to `ContentExtractor`.
 - `RawItem`: url, title, author, publishedAt, summary, optional fullText.
 
-**`ContentExtractor`** — `Optional<String> extract(String url, String html)`; default Jsoup implementation that picks the main content block (article/main tags, text-density heuristic), strips nav/ads/scripts. Plugins may supply their own.
+**`ContentExtractor`** — `boolean supports(String url)` + `Optional<String> extract(String url, String html)`; extractors are selected by URL host (most specific first), falling back to the default Jsoup implementation that picks the main content block (article/main tags, text-density heuristic) and strips nav/ads/scripts.
+
+**HTTP fetching** — all connector/extractor HTTP goes through one shared client with a configurable browser-like `User-Agent`, per-host politeness delay (default 1 s), timeouts and retries.
+
+### 3.1.1 v1 sources and connectors
+
+Built in v1:
+- `rss` — generic RSS/Atom connector.
+- `AnsaContentExtractor` — host `ansa.it`; site-specific selectors for article body, dropping related-links/boxes.
+
+Example sources (verified 2026-10-06 from the dev machine):
+
+| Site | Source | Notes |
+|---|---|---|
+| ANSA | `rss`, e.g. `https://www.ansa.it/sito/ansait_rss.xml` (plus per-section feeds) | Feed says "for personal use only"; items carry only title + description → full-text extraction via `AnsaContentExtractor` |
+| Il Post | `rss`, per-section feeds `https://www.ilpost.it/<section>/feed/` (e.g. `italia`, `mondo`, `politica`, `economia`, `tecnologia`) | Main `/feed/` returns 403; section feeds work, 10 items each, no `content:encoded` → generic extractor (Next.js pages; verify extraction quality, add `IlPostContentExtractor` only if needed) |
+
+Deferred (decided design, not built in v1):
+- `reddit` connector via the official OAuth API ("script" app, client id/secret in `.env`). Config: subreddit, sort (`top`/`hot`), time window, `minScore`, `topComments` (N). Item = post title + self-text (+ linked article text for link posts) + top N comments, so episodes can mention community reactions. Anonymous `.json` returns 403; `.rss` works but lacks scores/comments.
 
 **`TtsEngine`** — `AudioChunk synthesize(String text, VoiceConfig voice)`; v1 implementation `PiperHttpTtsEngine`.
 
@@ -235,9 +254,9 @@ Quarkus Scheduler programmatic API: register one job per enabled Show at startup
 - **Unit**: RSS parsing (fixture feeds), content extraction (saved HTML), word budget + calibration math, TTS normalization and chunking, outline allocation, feed XML rendering.
 - **Generation**: fake `ChatModel` returning scripted responses → verifies prompts contain language/focus/budgets, structured parsing, persisted outputs.
 - **Integration** (`@QuarkusTest`, Dev Services PostgreSQL): full run with fake ChatModel + WireMock Piper (returns short WAV) → stage transitions, resume after a TTS failure without new LLM calls, dedupe across two runs, `SKIPPED` path, feed XML, retention.
-- **Connector contract**: each `site:*` plugin tested against fixture HTML.
+- **Connector contract**: each `site:*` plugin and site-specific extractor tested against fixture HTML (v1: saved ANSA and Il Post article pages, ANSA and Il Post feed XML).
 - No real-LLM calls in automated tests; a `dev` profile for manual runs against real models.
 
 ## 10. Out of scope (v1)
 
-Two-host dialogue format; script review/approval step; S3 storage; JavaScript-rendered scraping; public exposure/auth beyond API key; multi-user; catch-up of missed scheduled runs.
+Reddit connector (designed in §3.1.1); site scraper plugins (`site:*` SPI exists, none built); two-host dialogue format; script review/approval step; S3 storage; JavaScript-rendered scraping; public exposure/auth beyond API key; multi-user; catch-up of missed scheduled runs.
