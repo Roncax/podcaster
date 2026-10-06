@@ -71,4 +71,24 @@ class PromptRendererTest {
     static final class LegacyRepair {
         static String text(String error) { return org.roncax.podcaster.support.LegacyPrompts.REPAIR.formatted(error); }
     }
+
+    @Test
+    void rejectsPropertyAndMethodAccess() {
+        List<String> errors = renderer.validate(PromptKey.SEGMENT, "{sources} {words} {headline.trim} {focus.length}");
+        assertEquals(2, errors.stream().filter(e -> e.startsWith("Property or method access is not allowed")).count(), errors.toString());
+    }
+
+    @Test
+    void rejectsSectionsOtherThanIf() {
+        assertTrue(renderer.validate(PromptKey.SEGMENT, "{sources} {words} {#include foo /}").get(0).startsWith("Template syntax error"));
+        assertTrue(renderer.validate(PromptKey.SEGMENT, "{#each sources}{it}{/each} {words}").get(0).startsWith("Template syntax error"));
+    }
+
+    @Test
+    void contractMustAlwaysBeRendered() {
+        List<String> errors = renderer.validate(PromptKey.RANK, "{items}\n{#if showName == 'x'}{contract}{/if}");
+        assertTrue(errors.stream().anyMatch(e -> e.contains("{contract}") && e.contains("always")), errors.toString());
+        errors = renderer.validate(PromptKey.FRAMING, "{stories}\n{#if focus}{contract}{/if}");
+        assertTrue(errors.isEmpty() || errors.stream().anyMatch(e -> e.contains("Unknown variable 'focus'")), errors.toString());
+    }
 }

@@ -113,4 +113,15 @@ class PromptApiTest {
                 .body("error", containsString("No unused items"));
         assertTrue(model.requests.isEmpty());
     }
+
+    @Test
+    void dryRunFailureIsReportedNot500() {
+        Show show = TestData.show("dry-broken");
+        Source source = TestData.source(show.id, "http://unused/feed");
+        TestData.item(show.id, source.id, "http://story/broken", Instant.now());
+        model.responder(prompt -> "this is not json");
+
+        api().body(Map.of("showId", show.id)).post("/api/prompts/dry-run").then().statusCode(422)
+                .body("error", containsString("did not return valid JSON"));
+    }
 }

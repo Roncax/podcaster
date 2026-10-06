@@ -28,4 +28,14 @@ public class ApiExceptionMappers {
     public RestResponse<ErrorBody> noCandidates(org.roncax.podcaster.prompts.NoCandidatesException e) {
         return RestResponse.status(Response.Status.CONFLICT, new ErrorBody(e.getMessage(), List.of()));
     }
+
+    @ServerExceptionMapper
+    public RestResponse<ErrorBody> generationFailed(org.roncax.podcaster.llm.GenerationException e) {
+        return RestResponse.ResponseBuilder.<ErrorBody>create(422).entity(new ErrorBody(e.getMessage(), List.of())).build();
+    }
+
+    @ServerExceptionMapper
+    public RestResponse<ErrorBody> unknownModel(org.roncax.podcaster.llm.UnknownModelException e) {
+        return RestResponse.status(Response.Status.CONFLICT, new ErrorBody(e.getMessage(), List.of()));
+    }
 }

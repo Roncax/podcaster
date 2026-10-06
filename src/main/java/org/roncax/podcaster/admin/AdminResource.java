@@ -294,8 +294,8 @@ public class AdminResource {
     public TemplateInstance dryRunFragment(@RestForm long showId) {
         try {
             return Templates.dryRun(dryRun.run(showId), null);
-        } catch (NoCandidatesException | org.roncax.podcaster.llm.GenerationException | org.roncax.podcaster.llm.UnknownModelException e) {
-            return Templates.dryRun(null, e.getMessage());
+        } catch (RuntimeException e) { // model errors, timeouts, broken drafts: show them instead of an empty swap
+            return Templates.dryRun(null, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
         }
     }
 

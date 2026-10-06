@@ -85,4 +85,14 @@ class PromptAdminTest {
         admin().formParam("showId", String.valueOf(show.id)).post("/admin/prompts/dry-run").then().statusCode(200)
                 .body(containsString("No unused items"));
     }
+
+    @Test
+    void dryRunFragmentShowsModelFailure() {
+        Show show = TestData.show("dryfail");
+        var source = TestData.source(show.id, "http://unused/feed");
+        TestData.item(show.id, source.id, "http://story/x", java.time.Instant.now());
+        FakeChatModelRegistry.install(new FakeChatModel().responder(prompt -> { throw new RuntimeException("connection refused by model host"); }));
+        admin().formParam("showId", String.valueOf(show.id)).post("/admin/prompts/dry-run").then().statusCode(200)
+                .body(containsString("connection refused by model host"));
+    }
 }
