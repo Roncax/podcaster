@@ -1,0 +1,20 @@
+{#include base}
+{#title}Prompts · Podcaster{/title}
+{#body}
+<h1>Prompts</h1>
+<p>Every prompt sent to the LLM. Versions are immutable; <strong>production</strong> is used by runs, <strong>draft</strong> by dry-runs.</p>
+<table>
+  <thead><tr><th>Prompt</th><th>Purpose</th><th>Production</th><th>Draft</th></tr></thead>
+  <tbody>
+  {#for r in rows}
+    <tr>
+      <td><a href="/admin/prompts/{r.key}"><code>{r.key}</code></a></td>
+      <td>{r.description}</td>
+      <td>v{r.production}</td>
+      <td>v{r.draft}</td>
+    </tr>
+  {/for}
+  </tbody>
+</table>
+{/body}
+{/include}

@@ -22,6 +22,8 @@ import org.roncax.podcaster.llm.ChatModelRegistry;
 import org.roncax.podcaster.runs.RunAlreadyActiveException;
 import org.roncax.podcaster.runs.RunLauncher;
 import org.roncax.podcaster.tts.TtsEngine;
+import org.roncax.podcaster.prompts.*;
+import org.roncax.podcaster.admin.PromptAdminViews.*;
 
 @Path("/admin")
 @Produces(MediaType.TEXT_HTML)
@@ -33,7 +35,13 @@ public class AdminResource {
         static native TemplateInstance shows(List<Show> shows, ShowForm form, List<String> errors, Set<String> models, Set<String> voices);
         static native TemplateInstance show(Show show, ShowForm form, String formAction, List<Source> sources, List<Run> runs,
                                             List<Episode> episodes, List<String> errors, Set<String> models, Set<String> voices,
-                                            Set<String> connectors);
+                                            Set<String> connectors, List<OverrideRow> promptOverrides);
+        static native TemplateInstance prompts(List<PromptRow> rows);
+        static native TemplateInstance prompt(String key, String description, Integer production, Integer draft,
+                                              List<VersionRow> versions, int shownVersion, String shownBody,
+                                              List<DiffRow> diff, String editorBody, String note, List<String> errors,
+                                              List<Show> shows);
+        static native TemplateInstance dryRun(PromptDryRun.Result result, String error);
         static native TemplateInstance runs(long showId, List<Run> runs);
         static native TemplateInstance sourceTest(SourceTestResult result);
         static native TemplateInstance episode(Show show, Episode episode);
@@ -46,6 +54,8 @@ public class AdminResource {
     @Inject ConnectorRegistry connectors;
     @Inject TtsEngine tts;
     @Inject Validator validator;
+    @Inject PromptRegistry prompts;
+    @Inject PromptDryRun dryRun;
 
     @GET
     public Response index() {
@@ -200,7 +210,7 @@ public class AdminResource {
         List<Source> sources = Source.list("showId = ?1 order by id", show.id);
         List<Episode> episodes = Episode.find("showId = ?1 order by createdAt desc", show.id).page(0, 20).list();
         return Templates.show(show, form, "/admin/shows/" + show.id, sources, recentRuns(show.id), episodes, errors,
-                models.availableNames(), voices(), connectors.types());
+                models.availableNames(), voices(), connectors.types(), overrideRows(show.id));
     }
 
     private List<Run> recentRuns(long showId) {
@@ -234,5 +244,106 @@ public class AdminResource {
             config.put(line.substring(0, eq).trim(), line.substring(eq + 1).trim());
         }
         return config;
+    }
+
+    @GET
+    @Path("/prompts")
+    public TemplateInstance promptsPage() {
+        List<PromptRow> rows = new ArrayList<>();
+        for (PromptKey key : PromptKey.values()) {
+            Map<PromptLabel, Integer> labels = prompts.labels(key);
+            rows.add(new PromptRow(key.dbKey(), key.description(), labels.get(PromptLabel.PRODUCTION), labels.get(PromptLabel.DRAFT)));
+        }
+        return Templates.prompts(rows);
+    }
+
+    @GET
+    @Path("/prompts/{key}")
+    public TemplateInstance promptPage(@RestPath String key, @org.jboss.resteasy.reactive.RestQuery Integer v) {
+        PromptKey k = promptKey(key);
+        Map<PromptLabel, Integer> labels = prompts.labels(k);
+        int shown = v != null ? v : labels.get(PromptLabel.DRAFT);
+        String draftBody = prompts.version(k, labels.get(PromptLabel.DRAFT)).orElseThrow().body;
+        return promptTemplate(k, shown, draftBody, null, List.of());
+    }
+
+    @POST
+    @Path("/prompts/{key}/versions")
+    public Response createPromptVersion(@RestPath String key, @RestForm String body, @RestForm String note) {
+        PromptKey k = promptKey(key);
+        try {
+            PromptVersion created = prompts.createVersion(k, body, note);
+            return Response.seeOther(URI.create("/admin/prompts/" + k.dbKey() + "?v=" + created.version)).build();
+        } catch (InvalidPromptException e) {
+            int shown = prompts.labels(k).get(PromptLabel.DRAFT);
+            return Response.ok(promptTemplate(k, shown, body, note, e.errors())).build();
+        }
+    }
+
+    @POST
+    @Path("/prompts/{key}/labels/{label}")
+    public Response setPromptLabel(@RestPath String key, @RestPath String label, @RestForm int version) {
+        PromptKey k = promptKey(key);
+        PromptLabel l = PromptLabel.fromDb(label).orElseThrow(NotFoundException::new);
+        prompts.setLabel(k, l, version);
+        return Response.seeOther(URI.create("/admin/prompts/" + k.dbKey() + "?v=" + version)).build();
+    }
+
+    @POST
+    @Path("/prompts/dry-run")
+    public TemplateInstance dryRunFragment(@RestForm long showId) {
+        try {
+            return Templates.dryRun(dryRun.run(showId), null);
+        } catch (NoCandidatesException | org.roncax.podcaster.llm.GenerationException | org.roncax.podcaster.llm.UnknownModelException e) {
+            return Templates.dryRun(null, e.getMessage());
+        }
+    }
+
+    @POST
+    @Path("/shows/{id}/prompts")
+    public Response saveShowPrompts(@RestPath long id, @RestForm String rank, @RestForm String segment,
+                                    @RestForm String framing, @RestForm("json_repair") String jsonRepair) {
+        Map<PromptKey, String> form = Map.of(PromptKey.RANK, nz(rank), PromptKey.SEGMENT, nz(segment),
+                PromptKey.FRAMING, nz(framing), PromptKey.JSON_REPAIR, nz(jsonRepair));
+        form.forEach((key, value) -> {
+            if (value.isBlank()) prompts.unpin(id, key);
+            else prompts.pin(id, key, Integer.parseInt(value.trim()));
+        });
+        return Response.seeOther(URI.create("/admin/shows/" + id)).build();
+    }
+
+    private TemplateInstance promptTemplate(PromptKey k, int shown, String editorBody, String note, List<String> errors) {
+        Map<PromptLabel, Integer> labels = prompts.labels(k);
+        Integer production = labels.get(PromptLabel.PRODUCTION);
+        String shownBody = prompts.version(k, shown).orElseThrow(NotFoundException::new).body;
+        String productionBody = prompts.version(k, production).orElseThrow().body;
+        List<DiffRow> diff = LineDiff.diff(productionBody, shownBody).stream()
+                .map(l -> new DiffRow(l.op() == '+' ? "diff-add" : l.op() == '-' ? "diff-del" : "diff-same",
+                        String.valueOf(l.op()), l.text()))
+                .toList();
+        List<VersionRow> versions = prompts.versions(k).stream()
+                .map(v -> new VersionRow(v.version, v.note == null ? "" : v.note, v.createdAt.toString(),
+                        String.join(", ", prompts.labelsOf(k, v.version))))
+                .toList();
+        return Templates.prompt(k.dbKey(), k.description(), production, labels.get(PromptLabel.DRAFT), versions, shown,
+                shownBody, diff, editorBody, note, errors, Show.listAll());
+    }
+
+    private List<OverrideRow> overrideRows(long showId) {
+        Map<PromptKey, Integer> pinned = prompts.overrides(showId);
+        List<OverrideRow> rows = new ArrayList<>();
+        for (PromptKey key : PromptKey.values()) {
+            List<Integer> versions = prompts.versions(key).stream().map(v -> v.version).toList();
+            rows.add(new OverrideRow(key.dbKey(), pinned.get(key), versions));
+        }
+        return rows;
+    }
+
+    private static PromptKey promptKey(String key) {
+        return PromptKey.fromDb(key).orElseThrow(NotFoundException::new);
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 }
