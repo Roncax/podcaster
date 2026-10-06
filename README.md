@@ -13,6 +13,8 @@ Self-hosted service that turns news sources into a daily ~20-minute podcast epis
 
 Example sources: ANSA `https://www.ansa.it/sito/ansait_rss.xml`, Il Post sections `https://www.ilpost.it/italia/feed/`, `https://www.ilpost.it/mondo/feed/`.
 
+Reddit (no credentials needed): connector `reddit` with config `subreddit=italy` (optional `window=day|week`, `maxPosts`, `commentPosts`, `topComments`). Link posts use the linked article's text, substantial text posts their own text; top comments are added when Reddit allows (requests are spaced 6 s apart to respect rate limits).
+
 ## LLM slots
 
 | Slot | Provider | Env |
