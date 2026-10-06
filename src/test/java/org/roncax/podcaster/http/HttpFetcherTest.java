@@ -48,4 +48,11 @@ class HttpFetcherTest {
         assertThrows(FetchException.class, () -> fetcher.get(wm.baseUrl() + "/down"));
         wm.verify(3, getRequestedFor(urlEqualTo("/down")));
     }
+
+    @Test
+    void singleAttemptDoesNotRetry() {
+        wm.stubFor(get("/once").willReturn(aResponse().withStatus(429)));
+        assertThrows(FetchException.class, () -> fetcher.get(wm.baseUrl() + "/once", 1));
+        wm.verify(1, getRequestedFor(urlEqualTo("/once")));
+    }
 }

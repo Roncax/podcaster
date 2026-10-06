@@ -72,4 +72,10 @@ class RssSourceConnectorTest {
                 () -> connector.fetch(new SourceConfig(Map.of()), Instant.now()));
         assertTrue(ex.getMessage().contains("url"));
     }
+
+    @Test
+    void validateRequiresUrl() {
+        assertEquals(List.of("rss sources need config.url"), connector.validate(new SourceConfig(Map.of())));
+        assertTrue(connector.validate(new SourceConfig(Map.of("url", "https://x/feed"))).isEmpty());
+    }
 }

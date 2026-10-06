@@ -31,6 +31,11 @@ public class RssSourceConnector implements SourceConnector {
     public String type() { return TYPE; }
 
     @Override
+    public java.util.List<String> validate(SourceConfig config) {
+        return config.get("url").isPresent() ? java.util.List.of() : java.util.List.of("rss sources need config.url");
+    }
+
+    @Override
     public List<RawItem> fetch(SourceConfig config, Instant since) throws Exception {
         String url = config.require("url");
         byte[] body = fetcher.get(url);

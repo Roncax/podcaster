@@ -80,6 +80,7 @@ public class IngestionService {
             item.fetchedAt = Instant.now();
             item.summary = raw.summary();
             item.fullText = fullText;
+            item.discussionUrl = raw.discussionUrl();
             item.persist();
             return true;
         });

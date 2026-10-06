@@ -18,6 +18,7 @@ public class Item extends PanacheEntityBase {
     public Instant fetchedAt;
     public String summary;
     public String fullText;
+    public String discussionUrl;
     public Long usedInEpisodeId;
 
     public Instant effectiveDate() {

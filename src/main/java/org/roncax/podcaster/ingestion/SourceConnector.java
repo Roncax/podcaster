@@ -13,4 +13,7 @@ public interface SourceConnector {
 
     /** True when {@link RawItem#fullText()} is already the article text, so no extraction is needed. */
     default boolean providesFullText() { return false; }
+
+    /** Connector-specific config errors; empty when valid. Checked when a source is created or updated. */
+    default java.util.List<String> validate(SourceConfig config) { return java.util.List.of(); }
 }

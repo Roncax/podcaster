@@ -44,6 +44,10 @@ public class HttpFetcher {
     }
 
     public byte[] get(String url) throws FetchException {
+        return get(url, attempts);
+    }
+
+    public byte[] get(String url, int attempts) throws FetchException {
         URI uri;
         try {
             uri = URI.create(url);

@@ -153,12 +153,11 @@ public class ShowService {
 
     private void validateSource(SourceRequest r) {
         List<String> errors = new ArrayList<>();
-        if (connectors.find(r.connectorType()).isEmpty()) {
+        Optional<SourceConnector> connector = connectors.find(r.connectorType());
+        if (connector.isEmpty()) {
             errors.add("Unknown connectorType '" + r.connectorType() + "'; available: " + connectors.types());
-        }
-        if (RssSourceConnector.TYPE.equals(r.connectorType())
-                && (r.config() == null || r.config().getOrDefault("url", "").isBlank())) {
-            errors.add("rss sources need config.url");
+        } else {
+            errors.addAll(connector.get().validate(new SourceConfig(r.config())));
         }
         throwIfInvalid(errors);
     }
