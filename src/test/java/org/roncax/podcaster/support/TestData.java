@@ -28,6 +28,7 @@ public final class TestData {
             org.roncax.podcaster.prompts.PromptVersion.deleteAll();
         });
         io.quarkus.arc.Arc.container().instance(org.roncax.podcaster.prompts.PromptSeeder.class).get().seed();
+        io.quarkus.arc.Arc.container().instance(org.roncax.podcaster.prompts.PromptResolver.class).get().invalidate();
     }
 
     public static Show show(String slug) {
