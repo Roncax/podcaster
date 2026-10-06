@@ -8,12 +8,16 @@ import org.roncax.podcaster.config.PodcasterConfig;
 import org.roncax.podcaster.domain.*;
 import org.roncax.podcaster.generation.StoryRanker;
 import org.roncax.podcaster.llm.ChatModelRegistry;
+import org.roncax.podcaster.prompts.PromptKey;
+import org.roncax.podcaster.prompts.PromptResolver;
+import org.roncax.podcaster.prompts.PromptSet;
 
 @ApplicationScoped
 public class SelectStage implements Stage {
     @Inject ChatModelRegistry models;
     @Inject StoryRanker ranker;
     @Inject PodcasterConfig config;
+    @Inject PromptResolver prompts;
 
     @Override
     public RunStage stage() { return RunStage.SELECT; }
@@ -21,14 +25,12 @@ public class SelectStage implements Stage {
     @Override
     public StageResult execute(Run run) {
         Show show = QuarkusTransaction.requiringNew().call(() -> Show.<Show>findById(run.showId));
-        List<Item> candidates = QuarkusTransaction.requiringNew().call(() -> Item.<Item>find(
-                        "showId = ?1 and usedInEpisodeId is null and coalesce(publishedAt, fetchedAt) >= ?2 "
-                                + "order by coalesce(publishedAt, fetchedAt) desc", show.id, run.since)
-                .page(0, config.selection().maxCandidates())
-                .list());
+        List<Item> candidates = QuarkusTransaction.requiringNew().call(() ->
+                Item.unusedCandidates(show.id, run.since, config.selection().maxCandidates()));
         if (candidates.size() < show.minItems) return StageResult.SKIP;
 
-        Selection selection = ranker.rank(models.get(show.effectiveRankerModel()),
+        PromptSet promptSet = prompts.resolve(show.id, PromptResolver.Mode.PRODUCTION);
+        Selection selection = ranker.rank(models.get(show.effectiveRankerModel()), promptSet,
                 show.name, show.language, show.focusPrompt, candidates);
 
         QuarkusTransaction.requiringNew().run(() -> {
@@ -40,7 +42,15 @@ public class SelectStage implements Stage {
                 return e;
             });
             episode.selection = selection;
+            episode.promptVersions = merge(episode.promptVersions, promptSet.versions(PromptKey.RANK, PromptKey.JSON_REPAIR));
         });
         return StageResult.CONTINUE;
+    }
+
+    static java.util.Map<String, Integer> merge(java.util.Map<String, Integer> existing, java.util.Map<String, Integer> used) {
+        java.util.Map<String, Integer> merged = new java.util.LinkedHashMap<>();
+        if (existing != null) merged.putAll(existing);
+        merged.putAll(used);
+        return merged;
     }
 }

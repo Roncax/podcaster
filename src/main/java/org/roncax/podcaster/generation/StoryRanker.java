@@ -8,16 +8,17 @@ import org.roncax.podcaster.domain.Item;
 import org.roncax.podcaster.domain.Selection;
 import org.roncax.podcaster.llm.GenerationException;
 import org.roncax.podcaster.llm.JsonChat;
+import org.roncax.podcaster.prompts.PromptSet;
 
 @ApplicationScoped
 public class StoryRanker {
     private static final int SNIPPET_CHARS = 500;
 
-    public Selection rank(ChatModel model, String showName, String language, String focusPrompt, List<Item> candidates) {
+    public Selection rank(ChatModel model, PromptSet prompts, String showName, String language, String focusPrompt, List<Item> candidates) {
         List<String> lines = candidates.stream()
                 .map(i -> "[id=" + i.id + "] " + i.title + " — " + snippet(i.bestText()))
                 .toList();
-        Selection raw = JsonChat.ask(model, Prompts.rank(showName, language, focusPrompt, lines), Selection.class);
+        Selection raw = JsonChat.ask(model, Prompts.rank(prompts, showName, language, focusPrompt, lines), Selection.class, prompts);
         return sanitize(raw, candidates);
     }
 

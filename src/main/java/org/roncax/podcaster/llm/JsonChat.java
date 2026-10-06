@@ -7,18 +7,20 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import org.roncax.podcaster.prompts.PromptKey;
+import org.roncax.podcaster.prompts.PromptSet;
 import java.util.List;
 
 /** Asks a model for a JSON object and maps it to a type, with one repair attempt. */
 public final class JsonChat {
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    static final String REPAIR = "Your previous reply could not be parsed as JSON (%s). "
-            + "Reply again with ONLY the JSON object: no prose, no code fences.";
 
     private JsonChat() {}
 
-    public static <T> T ask(ChatModel model, String prompt, Class<T> type) {
+    public static <T> T ask(ChatModel model, String prompt, Class<T> type, PromptSet prompts) {
         List<ChatMessage> messages = new ArrayList<>();
         messages.add(UserMessage.from(prompt));
         for (int attempt = 1; ; attempt++) {
@@ -30,7 +32,9 @@ public final class JsonChat {
                     throw new GenerationException("Model did not return valid JSON after 2 attempts: " + e.getMessage(), e);
                 }
                 messages.add(AiMessage.from(reply == null || reply.isBlank() ? "(empty reply)" : reply));
-                messages.add(UserMessage.from(REPAIR.formatted(e.getMessage())));
+                Map<String, Object> vars = new HashMap<>();
+                vars.put("error", String.valueOf(e.getMessage()));
+                messages.add(UserMessage.from(prompts.render(PromptKey.JSON_REPAIR, vars)));
             }
         }
     }

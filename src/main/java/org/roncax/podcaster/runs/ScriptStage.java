@@ -12,6 +12,9 @@ import org.roncax.podcaster.generation.OutlinePlanner;
 import org.roncax.podcaster.generation.Script;
 import org.roncax.podcaster.generation.ScriptWriter;
 import org.roncax.podcaster.llm.ChatModelRegistry;
+import org.roncax.podcaster.prompts.PromptKey;
+import org.roncax.podcaster.prompts.PromptResolver;
+import org.roncax.podcaster.prompts.PromptSet;
 import org.roncax.podcaster.tts.VoiceCalibrationService;
 
 @ApplicationScoped
@@ -20,6 +23,7 @@ public class ScriptStage implements Stage {
     @Inject OutlinePlanner planner;
     @Inject ScriptWriter writer;
     @Inject VoiceCalibrationService calibration;
+    @Inject PromptResolver prompts;
 
     @Override
     public RunStage stage() { return RunStage.SCRIPT; }
@@ -34,7 +38,8 @@ public class ScriptStage implements Stage {
         Map<Long, Item> items = QuarkusTransaction.requiringNew().call(() -> Item.<Item>list("id in ?1", outline.itemIds())
                 .stream().collect(Collectors.toMap(i -> i.id, Function.identity())));
 
-        Script script = writer.write(models.get(show.writerModel), show, outline, items, LocalDate.now());
+        PromptSet promptSet = prompts.resolve(show.id, PromptResolver.Mode.PRODUCTION);
+        Script script = writer.write(models.get(show.writerModel), promptSet, show, outline, items, LocalDate.now());
 
         QuarkusTransaction.requiringNew().run(() -> {
             Episode e = Episode.findById(episode.id);
@@ -43,6 +48,8 @@ public class ScriptStage implements Stage {
             e.description = script.description();
             e.scriptParts = script.parts();
             e.script = script.joined();
+            e.promptVersions = SelectStage.merge(e.promptVersions,
+                    promptSet.versions(PromptKey.SEGMENT, PromptKey.FRAMING, PromptKey.JSON_REPAIR));
         });
         return StageResult.CONTINUE;
     }

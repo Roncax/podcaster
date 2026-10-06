@@ -29,4 +29,10 @@ public class Item extends PanacheEntityBase {
         if (fullText != null && !fullText.isBlank()) return fullText;
         return summary == null ? "" : summary;
     }
+
+    public static java.util.List<Item> unusedCandidates(long showId, Instant since, int limit) {
+        return find("showId = ?1 and usedInEpisodeId is null and coalesce(publishedAt, fetchedAt) >= ?2 "
+                        + "order by coalesce(publishedAt, fetchedAt) desc", showId, since)
+                .page(0, limit).list();
+    }
 }

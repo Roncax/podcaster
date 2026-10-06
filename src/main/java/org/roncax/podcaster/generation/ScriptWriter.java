@@ -15,6 +15,7 @@ import org.roncax.podcaster.domain.OutlineSegment;
 import org.roncax.podcaster.domain.Show;
 import org.roncax.podcaster.llm.GenerationException;
 import org.roncax.podcaster.llm.JsonChat;
+import org.roncax.podcaster.prompts.PromptSet;
 
 @ApplicationScoped
 public class ScriptWriter {
@@ -30,12 +31,12 @@ public class ScriptWriter {
         this.maxSourceChars = maxSourceChars;
     }
 
-    public Script write(ChatModel model, Show show, Outline outline, Map<Long, Item> items, LocalDate date) {
+    public Script write(ChatModel model, PromptSet prompts, Show show, Outline outline, Map<Long, Item> items, LocalDate date) {
         List<String> segments = new ArrayList<>();
         String previousTail = null;
         for (OutlineSegment seg : outline.segments()) {
             List<Item> sourceItems = seg.itemIds().stream().map(items::get).filter(Objects::nonNull).toList();
-            String prompt = Prompts.segment(show.language, seg.headline(), seg.words(), sources(sourceItems), previousTail, show.focusPrompt);
+            String prompt = Prompts.segment(prompts, show.language, seg.headline(), seg.words(), sources(sourceItems), previousTail, show.focusPrompt);
             ChatResponse response = model.chat(UserMessage.from(prompt));
             if (response.finishReason() == FinishReason.LENGTH) {
                 throw new GenerationException("Segment '" + seg.headline() + "' was cut off by the model's token limit");
@@ -46,7 +47,7 @@ public class ScriptWriter {
             previousTail = tail(text);
         }
         List<String> headlines = outline.segments().stream().map(OutlineSegment::headline).toList();
-        Framing framing = JsonChat.ask(model, Prompts.framing(show.name, show.language, date, headlines), Framing.class);
+        Framing framing = JsonChat.ask(model, Prompts.framing(prompts, show.name, show.language, date, headlines), Framing.class, prompts);
         String intro = TtsTextNormalizer.normalize(framing.intro(), show.language);
         String outro = TtsTextNormalizer.normalize(framing.outro(), show.language);
         if (intro.isBlank() || outro.isBlank()) throw new GenerationException("Model returned an empty intro or outro");

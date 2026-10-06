@@ -12,6 +12,7 @@ import org.roncax.podcaster.domain.OutlineSegment;
 import org.roncax.podcaster.domain.Show;
 import org.roncax.podcaster.llm.GenerationException;
 import org.roncax.podcaster.support.FakeChatModel;
+import org.roncax.podcaster.support.TestPrompts;
 
 class ScriptWriterTest {
     static final String FRAMING = "{\"title\":\"Ep\",\"description\":\"Notes.\",\"intro\":\"Welcome.\",\"outro\":\"Bye.\"}";
@@ -44,7 +45,7 @@ class ScriptWriterTest {
                 "<think>hmm</think>Segment B text.",
                 FRAMING);
 
-        Script script = new ScriptWriter(12000).write(model, show(), outline, items, LocalDate.of(2026, 10, 6));
+        Script script = new ScriptWriter(12000).write(model, TestPrompts.seeded(), show(), outline, items, LocalDate.of(2026, 10, 6));
 
         assertEquals(List.of("Welcome.", "Segment A text. Bold words.", "Segment B text.", "Bye."), script.parts());
         assertEquals("Ep", script.title());
@@ -69,14 +70,14 @@ class ScriptWriterTest {
     void emptySegmentFails() {
         FakeChatModel model = new FakeChatModel().respond("   ", "x", FRAMING);
         assertThrows(GenerationException.class,
-                () -> new ScriptWriter(12000).write(model, show(), outline, items, LocalDate.now()));
+                () -> new ScriptWriter(12000).write(model, TestPrompts.seeded(), show(), outline, items, LocalDate.now()));
     }
 
     @Test
     void sourceTextIsTruncatedToBudget() {
         Map<Long, Item> big = Map.of(1L, item(1, "x".repeat(5000)), 2L, item(2, "y"), 3L, item(3, "z"));
         FakeChatModel model = new FakeChatModel().respond("A.", "B.", FRAMING);
-        new ScriptWriter(1000).write(model, show(), outline, big, LocalDate.now());
+        new ScriptWriter(1000).write(model, TestPrompts.seeded(), show(), outline, big, LocalDate.now());
         assertFalse(model.userMessage(0).contains("x".repeat(600)));
     }
 
@@ -92,7 +93,7 @@ class ScriptWriterTest {
             }
         };
         GenerationException ex = assertThrows(GenerationException.class,
-                () -> new ScriptWriter(12000).write(truncating, show(), outline, items, LocalDate.now()));
+                () -> new ScriptWriter(12000).write(truncating, TestPrompts.seeded(), show(), outline, items, LocalDate.now()));
         assertTrue(ex.getMessage().contains("token limit"), ex.getMessage());
     }
 }
