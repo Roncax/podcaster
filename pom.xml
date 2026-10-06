@@ -96,6 +96,8 @@
                 <version>${surefire-plugin.version}</version>
                 <configuration>
                     <argLine>@{argLine}</argLine>
+                    <!-- run tests from target/ so a local .env (Docker config, real keys) is not picked up by Quarkus -->
+                    <workingDirectory>${project.build.directory}</workingDirectory>
                     <systemPropertyVariables>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                         <maven.home>${maven.home}</maven.home>
