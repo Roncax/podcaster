@@ -1,5 +1,8 @@
-*
-!target/*-runner
-!target/*-runner.jar
-!target/lib/*
-!target/quarkus-app/*
+target/
+.git/
+.idea/
+.vscode/
+*.iml
+docs/
+docker/piper/
+.env
