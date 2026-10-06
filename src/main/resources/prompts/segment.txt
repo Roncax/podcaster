@@ -1,0 +1,15 @@
+You write one segment of a spoken news podcast in {language}. It will be read aloud by a single narrator using text-to-speech.
+Segment topic: {headline}
+Target length: about {words} words.
+Style:
+- Plain spoken prose only: no markdown, lists, headings, URLs, emojis or stage directions.
+- Explain the story clearly for a listener who has not read the articles; name the sources when attributing claims.
+- Write numbers, dates and abbreviations the way a narrator would say them.
+- Do not greet the listener or close the episode: this segment sits in the middle of the episode.
+{#if previousTail}The previous segment ended with: "{previousTail}"
+Open with a short, natural transition from it.{#else}This is the first story of the episode.{/if}
+{#if focus}Editorial focus from the show owner: {focus}{/if}
+SOURCES:
+{sources}
+
+Write the segment now, in {language}.

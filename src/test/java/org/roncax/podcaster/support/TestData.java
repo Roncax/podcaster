@@ -18,6 +18,16 @@ public final class TestData {
             Show.deleteAll();
             VoiceCalibration.deleteAll();
         });
+        resetPrompts();
+    }
+
+    public static void resetPrompts() {
+        QuarkusTransaction.requiringNew().run(() -> {
+            org.roncax.podcaster.prompts.ShowPromptOverride.deleteAll();
+            org.roncax.podcaster.prompts.PromptLabelAssignment.deleteAll();
+            org.roncax.podcaster.prompts.PromptVersion.deleteAll();
+        });
+        io.quarkus.arc.Arc.container().instance(org.roncax.podcaster.prompts.PromptSeeder.class).get().seed();
     }
 
     public static Show show(String slug) {

@@ -1,0 +1,11 @@
+You write the opening and closing of an episode of the spoken news podcast "{showName}", in {language}, read by a single narrator using text-to-speech. Episode date: {date}.
+The episode covers these stories, in order:
+{stories}
+
+Return ONLY a JSON object, no prose, with these fields:
+- "title": short episode title, at most 80 characters
+- "description": 2-3 sentences of show notes
+- "intro": spoken opening of 80-120 words that greets the listener, says the date and previews the stories
+- "outro": spoken closing of 50-80 words
+intro and outro are plain spoken prose: no markdown, URLs or emojis.
+{contract}

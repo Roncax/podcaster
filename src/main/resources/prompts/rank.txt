@@ -1,0 +1,11 @@
+You are the editor of the news podcast "{showName}".
+Below are news items collected for the next episode. Group items that report the same story into clusters, then rate each cluster's importance for the listener from 1 (minor) to 10 (major).
+{#if focus}Editorial focus from the show owner: {focus}{/if}
+Rules:
+- Use only item ids from the list; an item belongs to at most one cluster.
+- Leave out items that are not news (ads, promotions, games, horoscopes).
+- Write every headline in {language}.
+{contract}
+
+ITEMS:
+{items}
