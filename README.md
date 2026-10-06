@@ -26,6 +26,16 @@ Cron schedules (5-field Unix syntax, e.g. `0 7 * * *`) and episode dates use the
 
 Each Show picks a writer model and optionally a cheaper ranker model by slot name. Changing the model behind a slot = edit `.env` + restart. Adding a new slot = add it to `application.yml` and rebuild.
 
+## Prompts
+
+Every prompt sent to the LLM (`rank`, `segment`, `framing`, `json_repair`) lives in the database as immutable versions, editable at `/admin/prompts` or via `/api/prompts`.
+
+- Saving creates a new version labelled **draft**. Runs use **production**; promoting a version (or an older one, to roll back) takes effect on the next run, no restart.
+- **Dry-run** renders a full script for a show with the draft prompts without publishing anything.
+- A show can pin a specific version of any prompt (show page → Prompt overrides).
+- Templates use Qute syntax: `{variable}`, `{#if focus}…{/if}`. Allowed variables are listed per prompt; `{contract}` (required in `rank` and `framing`) inserts the JSON format the app parses. Invalid templates are rejected on save.
+- Each episode records the prompt versions that produced it (`promptVersions` in `/api/episodes/{id}`).
+
 ## Voices
 
 Piper voices are downloaded on first start (`PIPER_DEFAULT_VOICE`, `PIPER_EXTRA_VOICES`). Browse voices at https://huggingface.co/rhasspy/piper-voices. Episode length self-calibrates per voice after a couple of episodes.

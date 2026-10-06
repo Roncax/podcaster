@@ -34,9 +34,9 @@ Out of scope: automated evaluation datasets, quality gates and traffic splitting
 
 | Key | Replaces | Variables (required in **bold**) |
 |---|---|---|
-| `rank` | `Prompts.rank` text, incl. the editorial-focus line | **`items`**, `showName`, `language`, `focus` |
+| `rank` | `Prompts.rank` text, incl. the editorial-focus line | **`items`**, **`contract`**, `showName`, `language`, `focus` |
 | `segment` | `Prompts.segment` text, incl. style rules, the first-story / previous-segment transition sentences and the focus line | **`sources`**, **`words`**, `headline`, `language`, `focus`, `previousTail` |
-| `framing` | `Prompts.framing` text | **`stories`**, `showName`, `language`, `date` |
+| `framing` | `Prompts.framing` text | **`stories`**, **`contract`**, `showName`, `language`, `date` |
 | `json_repair` | `JsonChat.REPAIR` | **`error`** |
 
 Variable meanings:
@@ -48,6 +48,7 @@ Variable meanings:
 - `date` — episode date formatted long in the show's locale (e.g. "6 ottobre 2026").
 - `stories` — numbered headline list ("1. …\n2. …").
 - `error` — the JSON parse error message.
+- `contract` — supplied by code: the required output format (§4.3).
 
 Stays in code:
 - The `TASK: <NAME>` first line of every prompt (used for logging and tests).
@@ -66,10 +67,10 @@ prompts               key varchar(50) PK, description text
 prompt_versions       id bigserial PK, prompt_key → prompts(key), version int,
                       body text not null, note text, created_at timestamptz,
                       unique (prompt_key, version)
-prompt_labels         prompt_key → prompts(key), label varchar(20) check in ('production','draft'),
-                      version_id → prompt_versions(id), primary key (prompt_key, label)
-show_prompt_overrides show_id → shows(id) on delete cascade, prompt_key → prompts(key),
-                      version_id → prompt_versions(id), primary key (show_id, prompt_key)
+prompt_labels         id bigserial PK, prompt_key → prompts(key), label varchar(20) check in ('production','draft'),
+                      version_id → prompt_versions(id), unique (prompt_key, label)
+show_prompt_overrides id bigserial PK, show_id → shows(id) on delete cascade, prompt_key → prompts(key),
+                      version_id → prompt_versions(id), unique (show_id, prompt_key)
 episodes              + prompt_versions jsonb   -- e.g. {"rank":3,"segment":2,"framing":1,"json_repair":1}
 ```
 
@@ -89,14 +90,13 @@ episodes              + prompt_versions jsonb   -- e.g. {"rank":3,"segment":2,"f
 
 ### 4.3 Fixed output contract (code)
 
-Appended after the rendered body:
+The contract text is supplied by `PromptKey` and inserted where the body places the **required** `{contract}` variable, so an edit can move it but never remove it:
 
 - `rank`: "Return ONLY a JSON object, no prose, with this shape:\n{"clusters":[{"headline":"...","itemIds":[1,2],"importance":7}]}"
-- `framing`: "Return ONLY a JSON object, no prose, with these fields: title, description, intro, outro.\n{"title":"...","description":"...","intro":"...","outro":"..."}"
-- `segment`: none. The reply is plain text and is already cleaned by `LlmText` and `TtsTextNormalizer`.
-- `json_repair`: none.
+- `framing`: the JSON shape line `{"title":"...","description":"...","intro":"...","outro":"..."}`; the field descriptions above it are editable text.
+- `segment`, `json_repair`: no contract.
 
-When the seeded v1 is wrapped with header and contract, the result equals today's prompt text exactly. Where today's JSON instructions sit mid-prompt, v1 is arranged so the concatenation reproduces the original; the golden test verifies this.
+The `TASK: <NAME>` header is prepended by code (not for `json_repair`). With seeded v1 the rendered prompts equal the pre-registry text exactly (golden test against `LegacyPrompts`).
 
 ### 4.4 Generation flow changes
 
