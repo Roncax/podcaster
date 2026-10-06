@@ -15,6 +15,7 @@ public interface PodcasterConfig {
     Tts tts();
     Runs runs();
     Telegram telegram();
+    Reddit reddit();
 
     interface Storage { String root(); String workDir(); }
 
@@ -49,6 +50,8 @@ public interface PodcasterConfig {
     }
 
     interface Runs { int workers(); }
+
+    interface Reddit { Duration requestDelay(); String baseUrl(); }
 
     interface Telegram { Optional<String> botToken(); Optional<String> chatId(); String apiUrl(); }
 }

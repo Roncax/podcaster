@@ -17,7 +17,8 @@ public class WireMockResource implements QuarkusTestResourceLifecycleManager {
         installDefaults(server);
         return Map.of(
                 "podcaster.tts.piper-url", server.baseUrl(),
-                "podcaster.telegram.api-url", server.baseUrl());
+                "podcaster.telegram.api-url", server.baseUrl(),
+                "podcaster.reddit.base-url", server.baseUrl());
     }
 
     public static void installDefaults(WireMockServer server) {
