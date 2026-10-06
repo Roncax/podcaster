@@ -34,6 +34,16 @@ services:
       retries: 20
     restart: unless-stopped
 
+  adminer:
+    image: adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "${ADMINER_PORT:-8082}:8080"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
   piper:
     build: docker/piper
     environment:

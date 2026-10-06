@@ -61,6 +61,10 @@ public class ExampleSiteConnector implements SourceConnector {
 
 It then appears in the admin UI connector list. For cleaner article text on a specific site, implement `ContentExtractor` instead (see `AnsaContentExtractor`).
 
+## Database UI
+
+[Adminer](https://www.adminer.org/) runs alongside the stack at `http://<server>:8082` (`ADMINER_PORT`). Log in with System **PostgreSQL**, server `postgres`, username/password from `DB_USER`/`DB_PASSWORD` in `.env`, database `podcaster`. Edits made there bypass the app (e.g. prompt versions are meant to be immutable), so prefer it for reading.
+
 ## API
 
 REST API under `/api` (header `X-API-Key`), documented at `/q/swagger-ui`.
