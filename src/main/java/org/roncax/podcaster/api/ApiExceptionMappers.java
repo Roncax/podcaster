@@ -18,4 +18,14 @@ public class ApiExceptionMappers {
     public RestResponse<ErrorBody> active(RunAlreadyActiveException e) {
         return RestResponse.status(Response.Status.CONFLICT, new ErrorBody(e.getMessage(), List.of()));
     }
+
+    @ServerExceptionMapper
+    public RestResponse<ErrorBody> invalidPrompt(org.roncax.podcaster.prompts.InvalidPromptException e) {
+        return RestResponse.status(Response.Status.BAD_REQUEST, new ErrorBody("Invalid prompt", e.errors()));
+    }
+
+    @ServerExceptionMapper
+    public RestResponse<ErrorBody> noCandidates(org.roncax.podcaster.prompts.NoCandidatesException e) {
+        return RestResponse.status(Response.Status.CONFLICT, new ErrorBody(e.getMessage(), List.of()));
+    }
 }
