@@ -10,6 +10,7 @@ podcaster:
     politeness-delay: 1s
     attempts: 3
     retry-delay: 1s
+    allow-private-hosts: false   # URLs from untrusted origins (Reddit links) may not reach private networks
   selection:
     max-candidates: 80
     first-run-window: 24h
@@ -128,6 +129,7 @@ quarkus:
     http:
       politeness-delay: 0s
       retry-delay: 10ms
+      allow-private-hosts: true   # test articles are served by WireMock on localhost
     tts:
       retry-delay: 10ms
       parallelism: 2

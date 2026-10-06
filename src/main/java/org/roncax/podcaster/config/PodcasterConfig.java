@@ -25,6 +25,7 @@ public interface PodcasterConfig {
         Duration politenessDelay();
         int attempts();
         Duration retryDelay();
+        @io.smallrye.config.WithDefault("false") boolean allowPrivateHosts();
     }
 
     interface Selection { int maxCandidates(); Duration firstRunWindow(); }

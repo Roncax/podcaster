@@ -24,14 +24,25 @@ public class HttpFetcher {
     private final int attempts;
     private final Duration retryDelay;
     private final Map<String, Instant> nextAllowed = new ConcurrentHashMap<>();
+    private final HttpClient noRedirectClient;
+    private final java.util.function.Predicate<URI> untrustedPolicy;
+    private static final int MAX_REDIRECTS = 5;
 
     @Inject
     public HttpFetcher(PodcasterConfig config) {
         this(config.http().userAgent(), config.http().timeout(), config.http().politenessDelay(),
-                config.http().attempts(), config.http().retryDelay());
+                config.http().attempts(), config.http().retryDelay(),
+                config.http().allowPrivateHosts() ? UrlGuard::isHttp : UrlGuard::isPublicHttp);
     }
 
     public HttpFetcher(String userAgent, Duration timeout, Duration politenessDelay, int attempts, Duration retryDelay) {
+        this(userAgent, timeout, politenessDelay, attempts, retryDelay, UrlGuard::isPublicHttp);
+    }
+
+    public HttpFetcher(String userAgent, Duration timeout, Duration politenessDelay, int attempts, Duration retryDelay,
+                       java.util.function.Predicate<URI> untrustedPolicy) {
+        this.untrustedPolicy = untrustedPolicy;
+        this.noRedirectClient = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).connectTimeout(timeout).build();
         this.userAgent = userAgent;
         this.timeout = timeout;
         this.politenessDelay = politenessDelay;
@@ -45,6 +56,46 @@ public class HttpFetcher {
 
     public byte[] get(String url) throws FetchException {
         return get(url, attempts);
+    }
+
+    /** Fetches a URL from an untrusted origin: single attempt, every redirect hop checked against the policy. */
+    public byte[] getUntrusted(String url) throws FetchException {
+        return getUntrusted(url, untrustedPolicy);
+    }
+
+    public byte[] getUntrusted(String url, java.util.function.Predicate<URI> policy) throws FetchException {
+        URI current;
+        try {
+            current = URI.create(url.trim());
+        } catch (IllegalArgumentException e) {
+            throw new BlockedUrlException("Invalid URL: " + url);
+        }
+        try {
+            for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
+                if (!policy.test(current)) throw new BlockedUrlException("Refusing to fetch non-public URL " + current);
+                awaitPoliteness(current.getHost());
+                HttpRequest request = HttpRequest.newBuilder(current).timeout(timeout)
+                        .header("User-Agent", userAgent).header("Accept-Language", "it-IT,it;q=0.9,en;q=0.8").GET().build();
+                HttpResponse<byte[]> response = noRedirectClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+                int status = response.statusCode();
+                if (status >= 300 && status < 400) {
+                    String location = response.headers().firstValue("Location")
+                            .orElseThrow(() -> new FetchException("Redirect without Location from " + url));
+                    current = current.resolve(location.trim());
+                    continue;
+                }
+                if (status >= 400) throw new FetchException("HTTP " + status + " from " + current);
+                return response.body();
+            }
+        } catch (FetchException e) {
+            throw e;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new FetchException("Interrupted fetching " + url, e);
+        } catch (Exception e) {
+            throw new FetchException("Failed fetching " + url + ": " + e.getMessage(), e);
+        }
+        throw new FetchException("Too many redirects for " + url);
     }
 
     public byte[] get(String url, int attempts) throws FetchException {

@@ -101,4 +101,26 @@ class RedditIngestionTest {
                 .body("items[0].discussionUrl", is(RedditFeeds.thread("t1")))
                 .body("sampleText", containsString("Reddit discussion (top comments):\n- Bene"));
     }
+
+    @Test
+    void unknownOrBlockedSubredditReportsClearErrorInRuns() {
+        Show show = TestData.show("reddit-err");
+        Source source = QuarkusTransaction.requiringNew().call(() -> {
+            Source s = new Source();
+            s.showId = show.id;
+            s.connectorType = "reddit";
+            s.config = new java.util.HashMap<>(Map.of("subreddit", "nope"));
+            s.persist();
+            return s;
+        });
+        wm.stubFor(get(urlPathEqualTo("/r/nope/top/.rss")).willReturn(notFound()));
+        ingestion.ingest(show.id, Instant.now().minus(1, ChronoUnit.HOURS));
+        assertEquals("Subreddit r/nope not found or not public",
+                QuarkusTransaction.requiringNew().call(() -> Source.<Source>findById(source.id).lastError));
+
+        wm.stubFor(get(urlPathEqualTo("/r/nope/top/.rss")).willReturn(okForContentType("text/html", "<!DOCTYPE html><html><body>blocked</body></html>")));
+        ingestion.ingest(show.id, Instant.now().minus(1, ChronoUnit.HOURS));
+        assertEquals("Subreddit r/nope not found or not public",
+                QuarkusTransaction.requiringNew().call(() -> Source.<Source>findById(source.id).lastError));
+    }
 }

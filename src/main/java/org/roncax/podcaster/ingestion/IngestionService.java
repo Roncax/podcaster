@@ -43,7 +43,7 @@ public class IngestionService {
     private int ingestSource(long showId, Source source, Instant since) throws Exception {
         SourceConnector connector = registry.find(source.connectorType)
                 .orElseThrow(() -> new IllegalStateException("Unknown connector type '" + source.connectorType + "'"));
-        List<RawItem> raws = connector.fetch(new SourceConfig(source.config), since);
+        List<RawItem> raws = connector.fetch(new SourceConfig(source.config), since, url -> exists(showId, url));
         int added = 0;
         for (RawItem raw : raws) {
             if (raw.url().length() > MAX_URL || exists(showId, raw.url())) continue;

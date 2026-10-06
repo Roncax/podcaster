@@ -52,7 +52,7 @@ public class RedditRssClient implements RedditClient {
             body = fetcher.get(baseUrl + "/r/" + subreddit + "/top/.rss?t=" + window + "&limit=" + limit);
         } catch (FetchException e) {
             if (e.getMessage() != null && (e.getMessage().contains("HTTP 404") || e.getMessage().contains("HTTP 403"))) {
-                throw new FetchException(notFound, e);
+                throw new FetchException(notFound);
             }
             throw e;
         }
@@ -60,7 +60,7 @@ public class RedditRssClient implements RedditClient {
         try {
             feed = parse(body);
         } catch (Exception e) {
-            throw new FetchException(notFound, e);
+            throw new FetchException(notFound); // no cause: runs report the root cause, which would be parser noise
         }
         List<RedditPost> posts = new ArrayList<>();
         for (SyndEntry entry : feed.getEntries()) {
@@ -106,7 +106,8 @@ public class RedditRssClient implements RedditClient {
             String path = uri == null || uri.getPath() == null ? "" : uri.getPath();
             if (MEDIA_HOSTS.contains(host) || path.startsWith("/gallery/")) {
                 media = true;
-            } else if (!(host.endsWith("reddit.com") || host.endsWith("redd.it")) && !host.isEmpty()) {
+            } else if (!(host.endsWith("reddit.com") || host.endsWith("redd.it")) && !host.isEmpty()
+                    && org.roncax.podcaster.http.UrlGuard.isHttp(uri)) {
                 linkUrl = target.trim();
             }
         }

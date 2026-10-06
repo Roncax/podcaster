@@ -55,4 +55,21 @@ class HttpFetcherTest {
         assertThrows(FetchException.class, () -> fetcher.get(wm.baseUrl() + "/once", 1));
         wm.verify(1, getRequestedFor(urlEqualTo("/once")));
     }
+
+    @Test
+    void untrustedFetchChecksEveryRedirectHop() {
+        wm.stubFor(get("/start").willReturn(aResponse().withStatus(302).withHeader("Location", "/internal/secret")));
+        wm.stubFor(get("/internal/secret").willReturn(ok("secret")));
+        java.util.function.Predicate<java.net.URI> policy = u -> !u.getPath().startsWith("/internal");
+        FetchException ex = assertThrows(FetchException.class, () -> fetcher.getUntrusted(wm.baseUrl() + "/start", policy));
+        assertTrue(ex instanceof BlockedUrlException, ex.toString());
+        wm.verify(0, getRequestedFor(urlEqualTo("/internal/secret")));
+    }
+
+    @Test
+    void untrustedFetchFollowsAllowedRedirects() throws Exception {
+        wm.stubFor(get("/a").willReturn(aResponse().withStatus(301).withHeader("Location", "/b")));
+        wm.stubFor(get("/b").willReturn(ok("article")));
+        assertEquals("article", new String(fetcher.getUntrusted(wm.baseUrl() + "/a", u -> true)));
+    }
 }

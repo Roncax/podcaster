@@ -34,11 +34,17 @@ class RedditSourceConnectorTest {
 
     static class FakeExtraction extends ContentExtractionService {
         FakeExtraction() { super(new HttpFetcher("t", Duration.ofSeconds(1), Duration.ZERO, 1, Duration.ZERO), List.of()); }
-        @Override public Optional<String> extract(String url) { return url.contains("article") ? Optional.of("Article text of " + url) : Optional.empty(); }
+        List<String> extracted = new ArrayList<>();
+        @Override public Optional<String> extractUntrusted(String url) throws FetchException {
+            extracted.add(url);
+            if (url.contains("internal")) throw new org.roncax.podcaster.http.BlockedUrlException("Refusing to fetch non-public URL " + url);
+            return url.contains("article") ? Optional.of("Article text of " + url) : Optional.empty();
+        }
     }
 
     FakeClient client = new FakeClient();
-    RedditSourceConnector connector = new RedditSourceConnector(client, new FakeExtraction());
+    FakeExtraction extraction = new FakeExtraction();
+    RedditSourceConnector connector = new RedditSourceConnector(client, extraction);
 
     static RedditPost link(String id, String url) { return new RedditPost(id, "https://reddit/t/" + id, "Link " + id, "u", NOW, url, null, false); }
     static RedditPost text(String id, String body) { return new RedditPost(id, "https://reddit/t/" + id, "Text " + id, "u", NOW, null, body, false); }
@@ -115,5 +121,23 @@ class RedditSourceConnectorTest {
         assertTrue(connector.validate(new SourceConfig(Map.of("subreddit", "italy", "maxPosts", "3", "commentPosts", "4"))).get(0)
                 .contains("commentPosts"));
         assertTrue(connector.validate(new SourceConfig(Map.of("subreddit", "AskEurope", "window", "week"))).isEmpty());
+    }
+
+    @Test
+    void linksToNonPublicHostsAreSkipped() throws Exception {
+        client.posts.addAll(List.of(link("bad", "http://internal.lan/admin"), link("good", "https://x/article-ok")));
+        List<RawItem> items = fetch(Map.of("commentPosts", "0"));
+        assertEquals(List.of("https://x/article-ok"), items.stream().map(RawItem::url).toList());
+    }
+
+    @Test
+    void knownUrlsSkipExtractionAndComments() throws Exception {
+        client.posts.addAll(List.of(link("old", "https://x/article-old"), link("new", "https://x/article-new")));
+        Map<String, String> cfg = new HashMap<>(Map.of("subreddit", "italy", "commentPosts", "1"));
+        List<RawItem> items = connector.fetch(new SourceConfig(cfg), NOW.minus(Duration.ofDays(1)),
+                url -> url.equals("https://x/article-old"));
+        assertEquals(List.of("https://x/article-new"), items.stream().map(RawItem::url).toList());
+        assertEquals(List.of("https://x/article-new"), extraction.extracted);
+        assertEquals(List.of("new"), client.commentCalls);
     }
 }

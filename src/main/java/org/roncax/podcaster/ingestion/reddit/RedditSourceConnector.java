@@ -60,6 +60,11 @@ public class RedditSourceConnector implements SourceConnector {
 
     @Override
     public List<RawItem> fetch(SourceConfig config, Instant since) throws Exception {
+        return fetch(config, since, url -> false);
+    }
+
+    @Override
+    public List<RawItem> fetch(SourceConfig config, Instant since, java.util.function.Predicate<String> isKnownUrl) throws Exception {
         List<String> errors = validate(config);
         if (!errors.isEmpty()) throw new IllegalArgumentException(String.join("; ", errors));
         Settings s = settings(config);
@@ -73,10 +78,17 @@ public class RedditSourceConnector implements SourceConnector {
             String text;
             if (post.linkUrl() != null) {
                 url = post.linkUrl();
-                text = extract(url).orElse(post.selfText());
+                if (isKnownUrl.test(url)) continue;
+                try {
+                    text = extract(url).orElse(post.selfText());
+                } catch (org.roncax.podcaster.http.BlockedUrlException e) {
+                    LOG.infof("Skipping Reddit post linking to a non-public URL: %s", url);
+                    continue;
+                }
             } else {
                 if (post.selfText() == null || post.selfText().length() < MIN_TEXT_CHARS) continue;
                 url = post.threadUrl();
+                if (isKnownUrl.test(url)) continue;
                 text = post.selfText();
             }
             if (commentsEnabled && commentAttempts < s.commentPosts()) {
@@ -102,9 +114,11 @@ public class RedditSourceConnector implements SourceConnector {
         return items;
     }
 
-    private Optional<String> extract(String url) {
+    private Optional<String> extract(String url) throws org.roncax.podcaster.http.BlockedUrlException {
         try {
-            return extraction.extract(url);
+            return extraction.extractUntrusted(url);
+        } catch (org.roncax.podcaster.http.BlockedUrlException e) {
+            throw e;
         } catch (Exception e) {
             LOG.debugf("Article extraction failed for %s: %s", url, e.getMessage());
             return Optional.empty();

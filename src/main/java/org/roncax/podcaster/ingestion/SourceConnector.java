@@ -11,6 +11,14 @@ public interface SourceConnector {
     /** Fetch items published at or after {@code since}. Undated items are returned too. */
     List<RawItem> fetch(SourceConfig config, Instant since) throws Exception;
 
+    /**
+     * Like {@link #fetch(SourceConfig, Instant)}, but may skip expensive work for items whose URL is already stored.
+     * Connectors that do per-item fetching (extraction, comments) override this.
+     */
+    default List<RawItem> fetch(SourceConfig config, Instant since, java.util.function.Predicate<String> isKnownUrl) throws Exception {
+        return fetch(config, since);
+    }
+
     /** True when {@link RawItem#fullText()} is already the article text, so no extraction is needed. */
     default boolean providesFullText() { return false; }
 

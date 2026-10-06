@@ -35,6 +35,11 @@ public class ContentExtractionService {
         return extract(url, fetcher.get(url));
     }
 
+    /** For URLs from untrusted origins: non-public hosts and redirects to them are refused (BlockedUrlException). */
+    public Optional<String> extractUntrusted(String url) throws FetchException {
+        return extract(url, fetcher.getUntrusted(url));
+    }
+
     public Optional<String> extract(String url, byte[] html) {
         URI uri;
         Document doc;
