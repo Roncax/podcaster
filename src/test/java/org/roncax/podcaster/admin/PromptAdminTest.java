@@ -95,4 +95,17 @@ class PromptAdminTest {
         admin().formParam("showId", String.valueOf(show.id)).post("/admin/prompts/dry-run").then().statusCode(200)
                 .body(containsString("connection refused by model host"));
     }
+
+    @Test
+    void formWorksWithoutIsland() {
+        String html = admin().get("/admin/prompts/json_repair").then().statusCode(200).extract().asString();
+        assertTrue(html.contains("data-prompt-editor"), "editor island hook");
+        assertTrue(html.contains("name=\"body\""), "plain textarea is the submitted field");
+        assertTrue(html.contains("data-prompt-diff"), "diff island hook");
+        assertTrue(html.contains("/static/bundle/editor"), "editor bundle loaded");
+        assertTrue(html.contains("data-insert-var=\"{error}\""), "variable chips");
+        admin().formParam("body", REPAIR_V2).formParam("note", "plain form").post("/admin/prompts/json_repair/versions")
+                .then().statusCode(303);
+        assertEquals(2, registry.labels(PromptKey.JSON_REPAIR).get(PromptLabel.DRAFT));
+    }
 }

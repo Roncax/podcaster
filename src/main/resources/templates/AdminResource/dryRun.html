@@ -1,9 +1,0 @@
-<article>
-{#if error}
-  <p role="alert">{error}</p>
-{#else}
-  <p><strong>{result.title}</strong> · prompt versions {result.promptVersions}</p>
-  <p class="script">{result.description}</p>
-  {#for part in result.scriptParts}<p class="script">{part}</p>{/for}
-{/if}
-</article>
