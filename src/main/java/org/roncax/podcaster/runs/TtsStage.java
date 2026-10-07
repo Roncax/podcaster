@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.roncax.podcaster.config.PodcasterConfig;
+import org.roncax.podcaster.domain.Chapter;
 import org.roncax.podcaster.domain.Episode;
 import org.roncax.podcaster.domain.Run;
 import org.roncax.podcaster.domain.RunStage;
@@ -74,13 +75,15 @@ public class TtsStage implements Stage {
 
         progress.update(run.id, "Encoding MP3");
         AssembledAudio audio = assembler.assemble(files, chunks.stream().map(TtsChunk::pauseAfter).toList(),
-                dir.resolve("episode.mp3"),
+                chunks.stream().map(TtsChunk::part).toList(), dir.resolve("episode.mp3"),
                 new Mp3Tags(episode.title, "Podcaster", show.name, LocalDate.now().toString()));
 
+        List<Chapter> chapters = chapters(episode, audio.partStarts());
         QuarkusTransaction.requiringNew().run(() -> {
             Episode e = Episode.findById(episode.id);
             e.durationSeconds = audio.durationSeconds();
             e.sizeBytes = audio.sizeBytes();
+            e.chapters = chapters;
         });
         int words = episode.scriptParts.stream().mapToInt(p -> p.isBlank() ? 0 : p.trim().split("\\s+").length).sum();
         calibration.record(show.voiceId, show.lengthScale, words, audio.durationSeconds());
@@ -95,5 +98,27 @@ public class TtsStage implements Stage {
         Files.write(tmp, wav);
         Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         return file;
+    }
+
+    /** Intro, one chapter per outline segment, outro; starts come from the assembled audio. */
+    static List<Chapter> chapters(Episode episode, List<Double> partStarts) {
+        List<Chapter> chapters = new ArrayList<>();
+        int parts = partStarts.size();
+        for (int p = 0; p < parts; p++) {
+            String title;
+            List<Long> itemIds = List.of();
+            if (p == 0) {
+                title = "Intro";
+            } else if (p == parts - 1) {
+                title = "Outro";
+            } else {
+                int seg = p - 1;
+                boolean known = episode.outline != null && seg < episode.outline.segments().size();
+                title = known ? episode.outline.segments().get(seg).headline() : "Story " + p;
+                itemIds = known ? episode.outline.segments().get(seg).itemIds() : List.of();
+            }
+            chapters.add(new Chapter(title, partStarts.get(p), itemIds));
+        }
+        return chapters;
     }
 }

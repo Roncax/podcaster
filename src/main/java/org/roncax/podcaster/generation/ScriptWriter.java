@@ -88,12 +88,20 @@ public class ScriptWriter {
     }
 
     static String showNotes(String description, String language, Outline outline, Map<Long, Item> items) {
-        String label = language != null && language.startsWith("it") ? "Fonti" : "Sources";
+        boolean italian = language != null && language.startsWith("it");
         StringBuilder sb = new StringBuilder(description == null ? "" : description.trim());
-        sb.append("\n\n").append(label).append(":\n");
-        for (Long id : outline.itemIds()) {
-            Item item = items.get(id);
-            if (item != null) sb.append("- ").append(item.title).append(" — ").append(item.url).append('\n');
+        sb.append("\n\n").append(italian ? "Fonti" : "Sources").append(':');
+        int n = 0;
+        for (OutlineSegment seg : outline.segments()) {
+            sb.append('\n').append(++n).append(". ").append(seg.headline());
+            for (Long id : seg.itemIds()) {
+                Item item = items.get(id);
+                if (item == null) continue;
+                sb.append("\n- ").append(item.title).append(" — ").append(item.url);
+                if (item.discussionUrl != null && !item.discussionUrl.isBlank()) {
+                    sb.append("\n- ").append(italian ? "Discussione su Reddit" : "Reddit discussion").append(" — ").append(item.discussionUrl);
+                }
+            }
         }
         return sb.toString().trim();
     }

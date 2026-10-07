@@ -47,4 +47,10 @@ class ScriptChunkerTest {
         assertTrue(chunks.stream().allMatch(c -> c.text().length() <= 500));
         assertEquals(sentence, chunks.stream().map(TtsChunk::text).collect(Collectors.joining(" ")));
     }
+
+    @Test
+    void chunksKnowTheirPart() {
+        List<TtsChunk> chunks = ScriptChunker.chunk(List.of("Intro.", "One. Two.\n\nThree.", "Outro."), 500, CHUNK, SEGMENT);
+        assertEquals(List.of(0, 1, 1, 2), chunks.stream().map(TtsChunk::part).toList());
+    }
 }
