@@ -22,7 +22,7 @@
       {#if c.time}<a href="{episode.audioUrl}#t={c.start}" class="mono h-8 flex-none rounded-lg px-2.5 py-1.5 text-xs text-info no-underline ring-1 ring-line">{c.time}</a>{/if}
       <div class="flex min-w-0 flex-col gap-1.5">
         <span class="font-semibold">{c.title}</span>
-        {#for s in c.sources}<a href="{s.url}" class="flex gap-2 text-[13px] no-underline [overflow-wrap:anywhere]"><span class="text-muted">{s.site}</span><span class="link">{s.title}</span></a>{/for}
+        {#for s in c.sources}{#if s.url.safeHref}<a href="{s.url.safeHref}" class="flex gap-2 text-[13px] no-underline [overflow-wrap:anywhere]"><span class="text-muted">{s.site}</span><span class="link">{s.title}</span></a>{#else}<span class="flex gap-2 text-[13px] [overflow-wrap:anywhere]"><span class="text-muted">{s.site}</span><span>{s.title}</span></span>{/if}{/for}
       </div>
     </article>
     {#else}

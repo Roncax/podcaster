@@ -54,6 +54,10 @@ public class IngestionService {
         List<RawItem> raws = connector.fetch(new SourceConfig(source.config), since, url -> exists(showId, url));
         int added = 0;
         for (RawItem raw : raws) {
+            if (!org.roncax.podcaster.admin.SafeHref.isHttp(raw.url())) {
+                LOG.debugf("Skipping item with non-http link from %s", source.label());
+                continue;
+            }
             if (raw.url().length() > MAX_URL || exists(showId, raw.url())) continue;
             String fullText = raw.fullText();
             if (fullText == null && source.fetchFullText && !connector.providesFullText()) {
@@ -88,7 +92,7 @@ public class IngestionService {
             item.fetchedAt = Instant.now();
             item.summary = raw.summary();
             item.fullText = fullText;
-            item.discussionUrl = raw.discussionUrl();
+            item.discussionUrl = org.roncax.podcaster.admin.SafeHref.isHttp(raw.discussionUrl()) ? raw.discussionUrl() : null;
             item.persist();
             return true;
         });

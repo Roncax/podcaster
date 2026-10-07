@@ -139,4 +139,21 @@ class IngestionServiceTest {
         assertNull(item.fullText);
         assertEquals("Teaser", item.bestText());
     }
+
+    @Test
+    void itemsWithNonHttpLinksAreNotStored() {
+        Show show = TestData.show("ing-js");
+        TestData.source(show.id, wm.baseUrl() + "/feedjs");
+        String date = java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME.format(java.time.ZonedDateTime.now());
+        stubFeed("/feedjs", "<?xml version=\"1.0\"?><rss version=\"2.0\"><channel><title>t</title><link>http://x</link><description>d</description>"
+                + "<item><title>Evil</title><link>javascript:alert(document.cookie)</link><pubDate>" + date + "</pubDate><description>x</description></item>"
+                + "<item><title>Good</title><link>" + wm.baseUrl() + "/good</link><pubDate>" + date + "</pubDate><description>x</description></item>"
+                + "</channel></rss>");
+        stubArticle("/good");
+
+        ingestion.ingest(show.id, since());
+
+        List<Item> items = QuarkusTransaction.requiringNew().call(() -> Item.<Item>list("showId", show.id));
+        assertEquals(List.of("Good"), items.stream().map(i -> i.title).toList());
+    }
 }

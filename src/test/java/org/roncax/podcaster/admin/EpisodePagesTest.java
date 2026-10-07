@@ -91,4 +91,20 @@ class EpisodePagesTest {
         assertTrue(html.contains("Storia senza tempi"));
         assertFalse(html.contains("data-start="), "no timestamps for episodes without recorded chapters");
     }
+
+    @Test
+    void storedNonHttpLinksAreNotRenderedAsHref() {
+        Show show = TestData.show("ep-xss");
+        Source src = TestData.source(show.id, "http://feed");
+        Item item = TestData.item(show.id, src.id, "https://news.example/ok", Instant.now());
+        QuarkusTransaction.requiringNew().run(() -> {
+            Item i = Item.findById(item.id);
+            i.url = "javascript:alert(document.cookie)";
+            i.discussionUrl = "JavaScript:alert(2)";
+        });
+        Episode e = episode(show, "Episodio XSS", List.of(new Chapter("Storia", 1.0, List.of(item.id))), null);
+        String html = admin().get("/admin/episodes/" + e.id).then().statusCode(200).extract().asString();
+        assertFalse(html.toLowerCase().contains("href=\"javascript:"), html);
+        assertTrue(html.contains("Storia"));
+    }
 }
