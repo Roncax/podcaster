@@ -9,7 +9,7 @@ Self-hosted service that turns news sources into a daily ~20-minute podcast epis
 1. `cp .env.example .env` and set `PODCASTER_API_KEY`, `PODCASTER_BASE_URL`, the DB password, and enable at least one LLM slot.
 2. `docker compose up -d --build` (add `--profile ollama` for a local Ollama).
 3. Open `http://<server>:8080/admin`, log in with the API key, create a Show, add sources, press **Run now**.
-4. Subscribe to `http://<server>:8080/feeds/<slug>.xml` in your podcast app (AntennaPod, Pocket Casts, …). Keep the service on your LAN/VPN: feeds and audio are not authenticated.
+4. Subscribe to the feed URL shown on the show page, `http://<server>:8080/feeds/<token>/<slug>.xml`, in your podcast app (AntennaPod, Pocket Casts, …). The random per-show token is the only protection of the feed and its audio: treat the URL as a password, and use **Regenerate feed URL** on the show page if it leaks (subscribers must resubscribe). Never expose `/admin`, `/api` or `/q` to the internet.
 
 Example sources: ANSA `https://www.ansa.it/sito/ansait_rss.xml`, Il Post sections `https://www.ilpost.it/italia/feed/`, `https://www.ilpost.it/mondo/feed/`.
 
@@ -83,6 +83,16 @@ Pushes to `main` (and `v*` tags) build `ghcr.io/roncax/podcaster` and `ghcr.io/r
    ```
 3. Container Manager → **Project → Create**, path `/volume1/docker/podcaster`, use the existing `docker-compose.yml`.
 4. To update: `cd /volume1/docker/podcaster && sudo docker compose pull && sudo docker compose up -d` (or stop the project, pull the new images under **Image**, and start it again).
+
+### Public feed (DSM reverse proxy + Caddy)
+
+The `caddy` service (published on `PUBLIC_PORT`, default 8091) forwards only `/feeds/*` and `/media/*` to the app and answers 404 to everything else, so the admin UI and API stay LAN-only on `PODCASTER_PORT`. DSM keeps ports 80/443 and the certificate:
+
+1. Copy `deploy/synology/Caddyfile` next to `docker-compose.yml` on the NAS.
+2. Control Panel → External Access → DDNS: create `<name>.synology.me` with a Let's Encrypt certificate.
+3. Control Panel → Login Portal → Advanced → Reverse Proxy → Create: source `HTTPS`, hostname `<name>.synology.me`, port 443; destination `HTTP`, `localhost`, port `8091`.
+4. On the router, forward TCP 443 to the NAS (and 80 if the certificate renews via HTTP challenge).
+5. Set `PODCASTER_BASE_URL=https://<name>.synology.me` in `.env` and restart, so feed links point to the public URL.
 
 If the `piper` container dies with `Illegal instruction` (the NAS CPU lacks AVX), run the same image on a Raspberry Pi: `docker run -d -p 5000:5000 -v voices:/voices --restart unless-stopped ghcr.io/roncax/podcaster-piper`, and set `PIPER_URL=http://<pi-ip>:5000` in `.env`.
 

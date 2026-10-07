@@ -64,11 +64,12 @@ class PublishingTest {
         episode(show, "News & Views", "feed1/1.mp3", Instant.now());
         episode(show, "Draft", null, null);
 
-        String xml = given().get("/feeds/feed1.xml").then().statusCode(200)
+        String xml = given().get(show.feedPath()).then().statusCode(200)
                 .contentType(containsString("rss+xml")).extract().asString();
 
         assertTrue(xml.contains("News &amp; Views"));
-        assertTrue(xml.contains("url=\"http://podcaster.test/media/feed1/1.mp3\""));
+        assertTrue(xml.contains("url=\"http://podcaster.test/media/" + show.feedToken + "/feed1/1.mp3\""));
+        assertTrue(xml.contains("<link>http://podcaster.test" + show.feedPath() + "</link>"));
         assertTrue(xml.contains("length=\"1234\""));
         assertTrue(xml.contains("<itunes:duration>61</itunes:duration>"));
         assertEquals(1, xml.split("<item>", -1).length - 1);
@@ -81,10 +82,41 @@ class PublishingTest {
     }
 
     @Test
+    void feedRequiresTheShowsToken() {
+        Show show = TestData.show("feed2");
+        Show other = TestData.show("feed3");
+        given().get("/feeds/feed2.xml").then().statusCode(404);
+        given().get("/feeds/0123456789abcdef0123456789abcdef/feed2.xml").then().statusCode(404);
+        given().get("/feeds/" + other.feedToken + "/feed2.xml").then().statusCode(404);
+        given().get("/feeds/" + show.feedToken + "/feed2.xml").then().statusCode(200);
+    }
+
+    @Test
+    void showsGetDistinctUnguessableTokens() {
+        Show a = TestData.show("tok1");
+        Show b = TestData.show("tok2");
+        assertTrue(a.feedToken.matches("[0-9a-f]{32}"), a.feedToken);
+        assertNotEquals(a.feedToken, b.feedToken);
+    }
+
+    @Test
     void mediaIsServedWithRangeSupport() throws Exception {
+        Show show = TestData.show("media1");
         storeBytes("media1/ep.mp3", 100);
-        given().get("/media/media1/ep.mp3").then().statusCode(200).header("Content-Length", "100");
-        given().header("Range", "bytes=0-9").get("/media/media1/ep.mp3").then().statusCode(206).header("Content-Length", "10");
+        String url = "/media/" + show.feedToken + "/media1/ep.mp3";
+        given().get(url).then().statusCode(200).header("Content-Length", "100");
+        given().header("Range", "bytes=0-9").get(url).then().statusCode(206).header("Content-Length", "10");
+    }
+
+    @Test
+    void mediaRequiresTheShowsToken() throws Exception {
+        TestData.show("media2");
+        Show other = TestData.show("media3");
+        storeBytes("media2/ep.mp3", 100);
+        given().get("/media/media2/ep.mp3").then().statusCode(404);
+        given().get("/media/0123456789abcdef0123456789abcdef/media2/ep.mp3").then().statusCode(404);
+        given().get("/media/" + other.feedToken + "/media2/ep.mp3").then().statusCode(404);
+        given().urlEncodingEnabled(false).get("/media/" + other.feedToken + "/media3/../media2/ep.mp3").then().statusCode(404);
     }
 
     @Test
