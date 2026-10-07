@@ -1,0 +1,134 @@
+{#layout title=show.name active="shows"}
+<nav aria-label="Breadcrumb" class="text-[13px] text-muted"><a href="/admin/shows" class="link">Shows</a> / {show.name}</nav>
+<header class="flex flex-wrap items-center gap-4">
+  <div class="flex flex-col gap-2">
+    <h1 class="m-0 text-3xl font-bold">{show.name}</h1>
+    <ul class="m-0 flex flex-wrap gap-2 p-0" role="list">{#for c in chips}<li class="chip">{c}</li>{/for}<li><a href="/feeds/{show.slug}.xml" class="chip mono no-underline">/feeds/{show.slug}.xml</a></li></ul>
+  </div>
+  <div class="ml-auto flex gap-2.5">
+    <a href="/admin/prompts" class="btn btn-secondary">Dry-run drafts</a>
+    <form method="post" action="/admin/shows/{show.id}/run" hx-post="/admin/shows/{show.id}/run" hx-target="#live-run" hx-swap="outerHTML"><button type="submit" class="btn btn-accent">Run now</button></form>
+  </div>
+</header>
+
+{#include ShowPages/live showId=show.id live=live /}
+
+<div role="tablist" aria-label="Show sections" class="flex flex-wrap gap-1 border-b border-line">
+  <a role="tab" href="?tab=overview" aria-selected="{#if tab == 'overview'}true{#else}false{/if}" class="tab {#if tab == 'overview'}tab-active{/if}">Overview</a>
+  <a role="tab" href="?tab=sources" aria-selected="{#if tab == 'sources'}true{#else}false{/if}" class="tab {#if tab == 'sources'}tab-active{/if}">Sources</a>
+  <a role="tab" href="?tab=episodes" aria-selected="{#if tab == 'episodes'}true{#else}false{/if}" class="tab {#if tab == 'episodes'}tab-active{/if}">Episodes</a>
+  <a role="tab" href="?tab=settings" aria-selected="{#if tab == 'settings'}true{#else}false{/if}" class="tab {#if tab == 'settings'}tab-active{/if}">Settings</a>
+  <a role="tab" href="?tab=prompts" aria-selected="{#if tab == 'prompts'}true{#else}false{/if}" class="tab {#if tab == 'prompts'}tab-active{/if}">Prompt overrides</a>
+</div>
+
+{#if tab == 'overview'}
+<section class="flex flex-wrap items-start gap-5">
+  <div class="card grow-[999] basis-[480px] min-w-0">
+    <h2 class="m-0 text-base font-semibold">Latest episodes</h2>
+    {#for e in episodes}{#if e_index < 3}
+    <div class="flex flex-col gap-2 border-t border-line pt-3 first:border-t-0 first:pt-0">
+      <a href="/admin/episodes/{e.id}" class="text-sm font-medium text-ink no-underline hover:underline">{e.title}</a>
+      {#if e.audioUrl}<audio controls preload="none" src="{e.audioUrl}" class="w-full"></audio>{/if}
+      <span class="mono text-xs text-muted">{e.date} · {e.duration}</span>
+    </div>
+    {/if}{#else}<p class="m-0 text-sm text-muted">No episodes yet.</p>{/for}
+  </div>
+  <div class="card grow basis-80">
+    <h2 class="m-0 text-base font-semibold">Recent runs</h2>
+    <ul class="m-0 flex flex-col p-0" role="list">
+      {#for r in runs}
+      <li class="flex flex-wrap items-center gap-3 border-t border-line py-2.5 first:border-t-0">
+        <span class="mono text-xs text-muted">#{r.id}</span>{#stages stages=r.stages label=r.status /}{#badge tone=r.tone}{r.status}{/badge}
+        <span class="ml-auto text-xs text-muted">{r.when}</span>
+      </li>
+      {#else}<li class="text-sm text-muted">No runs yet.</li>{/for}
+    </ul>
+  </div>
+</section>
+{/if}
+
+{#if tab == 'sources'}
+<section class="flex flex-wrap items-start gap-5">
+  <div class="card grow-[999] basis-[560px] min-w-0 overflow-x-auto p-0">
+    <table class="w-full min-w-[640px] border-collapse text-sm">
+      <thead><tr class="text-left text-xs text-muted"><th class="px-5 py-3.5 font-medium">Source</th><th class="px-2 py-3.5 font-medium">Type</th><th class="px-2 py-3.5 font-medium">Last fetch</th><th class="px-2 py-3.5 font-medium">New (24 h)</th><th class="px-2 py-3.5 font-medium">Status</th><th class="px-5 py-3.5"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        {#for s in sources}
+        <tr class="border-t border-line align-top">
+          <td class="px-5 py-3"><span class="flex flex-col"><span class="font-medium">{s.name}</span><span class="mono break-all text-[11px] text-muted">{s.detail}</span></span></td>
+          <td class="px-2 py-3">{#badge tone=s.typeTone}{s.type}{/badge}</td>
+          <td class="px-2 py-3 text-[#3D4957]">{s.fetched}</td>
+          <td class="mono px-2 py-3">{s.newToday}</td>
+          <td class="px-2 py-3">{#badge tone=s.tone}{s.status}{/badge}</td>
+          <td class="px-5 py-3 text-right">
+            <span class="inline-flex gap-2">
+              <button type="button" class="btn btn-secondary btn-sm" hx-post="/admin/sources/{s.id}/test" hx-target="#source-test" hx-indicator="#source-test-busy">Test</button>
+              <form method="post" action="/admin/sources/{s.id}/delete"><button type="submit" class="btn btn-secondary btn-sm">Delete</button></form>
+            </span>
+          </td>
+        </tr>
+        {#else}<tr><td colspan="6" class="px-5 py-4 text-muted">No sources yet. Add one on the right.</td></tr>{/for}
+      </tbody>
+    </table>
+    <div class="px-5 pb-5"><span id="source-test-busy" class="htmx-indicator text-xs text-muted">Testing…</span><div id="source-test"></div></div>
+  </div>
+  <form method="post" action="/admin/shows/{show.id}/sources" class="card grow basis-80" aria-label="Add source">
+    <h2 class="m-0 text-base font-semibold">Add source</h2>
+    {#if sourceErrors}<div role="alert" class="rounded-xl bg-fail-bg p-3 text-sm text-fail"><ul class="m-0 pl-5">{#for e in sourceErrors}<li>{e}</li>{/for}</ul></div>{/if}
+    <label class="field"><span class="field-label">Connector</span>
+      <select class="field-input" name="connectorType">{#for c in connectors}<option value="{c}">{c}</option>{/for}</select></label>
+    <fieldset class="m-0 flex flex-col gap-3 border-0 p-0"><legend class="mb-1 text-[13px] font-semibold">RSS</legend>
+      <label class="field"><span class="field-label">Feed URL</span><input class="field-input mono" name="url" placeholder="https://www.ilpost.it/italia/feed/"></label>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="fetchFullText" checked> Fetch full article text</label>
+    </fieldset>
+    <fieldset class="m-0 grid grid-cols-2 gap-3 border-0 p-0"><legend class="mb-1 text-[13px] font-semibold">Reddit</legend>
+      <label class="field col-span-2"><span class="field-label">Subreddit</span><input class="field-input" name="subreddit" placeholder="italy"></label>
+      <label class="field"><span class="field-label">Window</span><select class="field-input" name="window"><option value="day">Last day</option><option value="week">Last week</option><option value="hour">Last hour</option><option value="month">Last month</option></select></label>
+      <label class="field"><span class="field-label">Top posts</span><input class="field-input mono" name="maxPosts" value="10"></label>
+    </fieldset>
+    <details><summary class="cursor-pointer text-[13px] font-medium">Advanced: extra config (key=value per line)</summary>
+      <textarea class="field-input mt-2 w-full" name="config" rows="3"></textarea></details>
+    <button type="submit" class="btn btn-primary">Add to show</button>
+  </form>
+</section>
+{/if}
+
+{#if tab == 'episodes'}
+<section class="card">
+  <h2 class="m-0 text-base font-semibold">Episodes</h2>
+  <ul class="m-0 flex flex-col p-0" role="list">
+    {#for e in episodes}
+    <li class="flex flex-wrap items-center gap-3 border-t border-line py-3 first:border-t-0">
+      <a href="/admin/episodes/{e.id}" class="grow text-sm font-medium text-ink no-underline hover:underline">{e.title}</a>
+      <span class="mono text-xs text-muted">{e.date} · {e.duration}</span>
+    </li>
+    {#else}<li class="text-sm text-muted">No episodes yet.</li>{/for}
+  </ul>
+</section>
+{/if}
+
+{#if tab == 'settings'}
+<section class="card">
+  <h2 class="m-0 text-base font-semibold">Settings</h2>
+  <p class="m-0 text-sm text-muted">Schedule: {cronText}</p>
+  {#include ShowPages/showFields form=form errors=errors models=models voices=voices action=formAction submit="Save" /}
+  <form method="post" action="/admin/shows/{show.id}/delete" onsubmit="return confirm('Delete this show, its sources and episodes?')" class="border-t border-line pt-4">
+    <button type="submit" class="btn btn-secondary">Delete show</button>
+  </form>
+</section>
+{/if}
+
+{#if tab == 'prompts'}
+<form method="post" action="/admin/shows/{show.id}/prompts" class="card">
+  <h2 class="m-0 text-base font-semibold">Prompt overrides</h2>
+  <p class="m-0 text-sm text-muted">Pin a prompt version for this show only; unpinned prompts use the production label.</p>
+  <table class="w-full border-collapse text-sm"><tbody>
+    {#for o in overrides}
+    <tr class="border-t border-line"><td class="py-2.5"><a href="/admin/prompts/{o.key}" class="link mono">{o.key}</a></td>
+      <td class="py-2.5"><select class="field-input" name="{o.key}"><option value="">(production label)</option>{#for v in o.versions}<option value="{v}" {#if v == o.pinned}selected{/if}>v{v}</option>{/for}</select></td></tr>
+    {/for}
+  </tbody></table>
+  <div><button type="submit" class="btn btn-primary">Save overrides</button></div>
+</form>
+{/if}
+{/layout}

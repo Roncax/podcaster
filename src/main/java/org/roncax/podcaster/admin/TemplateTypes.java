@@ -17,4 +17,6 @@ import org.roncax.podcaster.ingestion.RawItem;
 @TemplateData(target = AdminViews.Step.class)
 @TemplateData(target = AdminViews.ChapterView.class)
 @TemplateData(target = AdminViews.SourceLink.class)
+@TemplateData(target = AdminViews.LiveRun.class)
+@TemplateData(target = PromptAdminViews.OverrideRow.class)
 public class TemplateTypes {}

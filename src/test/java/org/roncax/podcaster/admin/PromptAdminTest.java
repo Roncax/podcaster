@@ -73,7 +73,7 @@ class PromptAdminTest {
         admin().formParam("rank", "1").formParam("segment", "").formParam("framing", "").formParam("json_repair", "")
                 .post("/admin/shows/" + show.id + "/prompts").then().statusCode(303);
         assertEquals(Map.of(PromptKey.RANK, 1), registry.overrides(show.id));
-        admin().get("/admin/shows/" + show.id).then().statusCode(200).body(containsString("Prompt overrides"));
+        admin().get("/admin/shows/" + show.id + "?tab=prompts").then().statusCode(200).body(containsString("Prompt overrides"));
         admin().formParam("rank", "").formParam("segment", "").formParam("framing", "").formParam("json_repair", "")
                 .post("/admin/shows/" + show.id + "/prompts").then().statusCode(303);
         assertTrue(registry.overrides(show.id).isEmpty());

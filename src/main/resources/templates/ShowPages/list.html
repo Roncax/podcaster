@@ -1,0 +1,28 @@
+{#layout title="Shows" active="shows"}
+<header class="flex flex-wrap items-end gap-4">
+  <h1 class="m-0 text-3xl font-bold">Shows</h1>
+</header>
+<section class="grid gap-5 md:grid-cols-2" aria-label="Shows">
+  {#for s in shows}
+  <article class="card">
+    <div class="flex items-start gap-3">
+      <div class="flex flex-col gap-1">
+        <h2 class="m-0 text-xl font-semibold"><a href="/admin/shows/{s.id}" class="text-ink no-underline hover:underline">{s.name}</a></h2>
+        <span class="text-[13px] text-muted">{s.meta}</span>
+      </div>
+      <span class="ml-auto">{#badge tone=s.lastRunTone}{s.lastRunLabel}{/badge}</span>
+    </div>
+    <div class="flex flex-wrap gap-2.5">
+      <a href="/admin/shows/{s.id}" class="btn btn-secondary btn-sm">Open</a>
+      <a href="/feeds/{s.slug}.xml" class="btn btn-secondary btn-sm">/feeds/{s.slug}.xml</a>
+    </div>
+  </article>
+  {#else}
+  {#emptyState title="No shows yet"}Create your first show below.{/emptyState}
+  {/for}
+</section>
+<details id="new-show" class="card" {#if errors}open{/if}>
+  <summary class="cursor-pointer text-base font-semibold">New show</summary>
+  {#include ShowPages/showFields form=form errors=errors models=models voices=voices action="/admin/shows" submit="Create show" /}
+</details>
+{/layout}

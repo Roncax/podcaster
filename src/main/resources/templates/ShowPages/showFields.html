@@ -1,0 +1,33 @@
+{#if errors}<div role="alert" class="rounded-xl bg-fail-bg p-3 text-sm text-fail"><ul class="m-0 pl-5">{#for e in errors}<li>{e}</li>{/for}</ul></div>{/if}
+<form method="post" action="{action}" class="flex flex-col gap-5">
+  <fieldset class="m-0 grid gap-4 border-0 p-0 md:grid-cols-2">
+    <legend class="mb-2 text-sm font-semibold">General</legend>
+    <label class="field"><span class="field-label">Name</span><input class="field-input" name="name" value="{form.name ?: ''}" required></label>
+    <label class="field"><span class="field-label">Slug (feed URL)</span><input class="field-input mono" name="slug" value="{form.slug ?: ''}" required></label>
+    <label class="field md:col-span-2"><span class="field-label">Description</span><input class="field-input" name="description" value="{form.description ?: ''}"></label>
+    <label class="field"><span class="field-label">Language</span><input class="field-input" name="language" value="{form.language ?: ''}" placeholder="it" required></label>
+    <label class="field"><span class="field-label">Editorial focus</span><input class="field-input" name="focusPrompt" value="{form.focusPrompt ?: ''}" placeholder="e.g. Skip sports and gossip"></label>
+  </fieldset>
+  <fieldset class="m-0 grid gap-4 border-0 p-0 md:grid-cols-3">
+    <legend class="mb-2 text-sm font-semibold">Voice &amp; model</legend>
+    <label class="field"><span class="field-label">Voice</span>
+      <select class="field-input" name="voiceId" required>
+        {#for v in voices}<option value="{v}" {#if v == form.voiceId}selected{/if}>{v}</option>{/for}
+        {#if voices.isEmpty}<option value="{form.voiceId ?: ''}" selected>{form.voiceId ?: 'Piper unreachable'}</option>{/if}
+      </select></label>
+    <label class="field"><span class="field-label">Speed (length scale)</span><input class="field-input mono" name="lengthScale" type="number" step="0.05" min="0.5" max="2" value="{form.lengthScale ?: '1.0'}"></label>
+    <label class="field"><span class="field-label">Writer model</span>
+      <select class="field-input" name="writerModel" required>{#for m in models}<option value="{m}" {#if m == form.writerModel}selected{/if}>{m}</option>{/for}</select></label>
+    <label class="field"><span class="field-label">Ranker model</span>
+      <select class="field-input" name="rankerModel"><option value="">(same as writer)</option>{#for m in models}<option value="{m}" {#if m == form.rankerModel}selected{/if}>{m}</option>{/for}</select></label>
+  </fieldset>
+  <fieldset class="m-0 grid gap-4 border-0 p-0 md:grid-cols-3">
+    <legend class="mb-2 text-sm font-semibold">Episodes &amp; schedule</legend>
+    <label class="field"><span class="field-label">Target minutes</span><input class="field-input mono" name="targetDurationMinutes" value="{form.targetDurationMinutes ?: '20'}"></label>
+    <label class="field"><span class="field-label">Min new items</span><input class="field-input mono" name="minItems" value="{form.minItems ?: '3'}"></label>
+    <label class="field"><span class="field-label">Keep episodes</span><input class="field-input mono" name="retainEpisodes" value="{form.retainEpisodes ?: '30'}"></label>
+    <label class="field md:col-span-2"><span class="field-label">Schedule (cron, e.g. <code class="mono">0 6 * * *</code>)</span><input class="field-input mono" name="cron" value="{form.cron ?: ''}"></label>
+    <label class="flex items-center gap-2 self-end text-sm"><input type="checkbox" name="enabled" {#if form.enabled}checked{/if}> Enabled</label>
+  </fieldset>
+  <div><button type="submit" class="btn btn-primary">{submit}</button></div>
+</form>
