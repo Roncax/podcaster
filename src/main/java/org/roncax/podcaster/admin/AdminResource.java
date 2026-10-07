@@ -144,6 +144,13 @@ public class AdminResource {
     }
 
     @POST
+    @Path("/shows/{id}/feed-token")
+    public Response regenerateFeedToken(@RestPath long id) {
+        shows.regenerateFeedToken(id);
+        return Response.seeOther(URI.create("/admin/shows/" + id)).build();
+    }
+
+    @POST
     @Path("/shows/{id}/sources")
     public Response addSource(@RestPath long id, @RestForm String connectorType, @RestForm String config,
                               @RestForm String fetchFullText) {

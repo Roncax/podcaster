@@ -12,7 +12,7 @@
     <tr>
       <td><a href="/admin/shows/{s.id}">{s.name}</a>{#if !s.enabled} <small>(disabled)</small>{/if}</td>
       <td>{s.language}</td><td>{s.writerModel}</td><td><code>{s.cron ?: '—'}</code></td>
-      <td><a href="/feeds/{s.slug}.xml">/feeds/{s.slug}.xml</a></td>
+      <td><a href="{s.feedPath}">{s.feedPath}</a></td>
     </tr>
   {/for}
   </tbody>

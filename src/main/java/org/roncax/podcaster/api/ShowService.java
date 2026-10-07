@@ -59,6 +59,12 @@ public class ShowService {
         return show;
     }
 
+    /** Invalidates the old feed and media URLs: subscribers need the new feed URL. */
+    public void regenerateFeedToken(long id) {
+        QuarkusTransaction.requiringNew().run(() ->
+                Show.<Show>findByIdOptional(id).orElseThrow(NotFoundException::new).feedToken = Show.newFeedToken());
+    }
+
     public void delete(long id) {
         String slug = QuarkusTransaction.requiringNew().call(() -> {
             Show s = Show.<Show>findByIdOptional(id).orElseThrow(NotFoundException::new);

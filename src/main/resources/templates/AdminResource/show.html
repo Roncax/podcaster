@@ -3,8 +3,12 @@
 {#body}
 <hgroup>
   <h1>{show.name}</h1>
-  <p>Podcast feed: <a href="/feeds/{show.slug}.xml">/feeds/{show.slug}.xml</a></p>
+  <p>Podcast feed: <a href="{show.feedPath}">{show.feedPath}</a></p>
 </hgroup>
+<form method="post" action="/admin/shows/{show.id}/feed-token"
+      onsubmit="return confirm('Generate a new feed URL? Existing subscribers will have to resubscribe.')">
+  <button type="submit" class="secondary outline">Regenerate feed URL</button>
+</form>
 <p><button hx-post="/admin/shows/{show.id}/run" hx-target="#runs" hx-swap="outerHTML">Run now</button></p>
 
 <h2>Runs</h2>

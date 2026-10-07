@@ -17,10 +17,10 @@ public class FeedResource {
     @Inject PodcasterConfig config;
 
     @GET
-    @Path("/{slug}.xml")
+    @Path("/{token}/{slug}.xml")
     @Produces("application/rss+xml; charset=UTF-8")
-    public String feed(@PathParam("slug") String slug) {
-        Show show = Show.findBySlug(slug).orElseThrow(NotFoundException::new);
+    public String feed(@PathParam("token") String token, @PathParam("slug") String slug) {
+        Show show = Show.findByFeedToken(token).filter(s -> s.slug.equals(slug)).orElseThrow(NotFoundException::new);
         List<Episode> episodes = Episode.list(
                 "showId = ?1 and publishedAt is not null and audioPath is not null order by publishedAt desc", show.id);
         return renderer.render(show, episodes, config.baseUrl());

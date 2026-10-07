@@ -1,0 +1,16 @@
+# Public entry point: DSM's reverse proxy terminates HTTPS and forwards here.
+# Only the podcast feed and audio are reachable; admin, API and /q stay LAN-only on PODCASTER_PORT.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	@public path /feeds/* /media/*
+	handle @public {
+		reverse_proxy podcaster:8080
+	}
+	handle {
+		respond 404
+	}
+}

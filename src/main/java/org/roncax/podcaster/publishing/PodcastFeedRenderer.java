@@ -26,7 +26,7 @@ public class PodcastFeedRenderer {
             w.writeAttribute("version", "2.0");
             w.writeStartElement("channel");
             element(w, "title", show.name);
-            element(w, "link", base + "/feeds/" + show.slug + ".xml");
+            element(w, "link", base + show.feedPath());
             element(w, "description", show.description == null || show.description.isBlank() ? show.name : show.description);
             element(w, "language", show.language);
             itunes(w, "author", "Podcaster");
@@ -42,7 +42,7 @@ public class PodcastFeedRenderer {
                 w.writeEndElement();
                 element(w, "pubDate", DateTimeFormatter.RFC_1123_DATE_TIME.format(e.publishedAt.atOffset(ZoneOffset.UTC)));
                 w.writeEmptyElement("enclosure");
-                w.writeAttribute("url", base + "/media/" + e.audioPath);
+                w.writeAttribute("url", base + show.mediaPath(e.audioPath));
                 w.writeAttribute("length", String.valueOf(e.sizeBytes == null ? 0 : e.sizeBytes));
                 w.writeAttribute("type", "audio/mpeg");
                 itunes(w, "duration", String.valueOf(Math.round(e.durationSeconds == null ? 0 : e.durationSeconds)));
