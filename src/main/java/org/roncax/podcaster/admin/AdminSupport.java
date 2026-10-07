@@ -61,7 +61,7 @@ public class AdminSupport {
                 last.map(r -> "Last run: " + label(r.status).toLowerCase()).orElse("No runs yet"),
                 last.map(r -> tone(r.status)).orElse("neutral"),
                 latest.map(e -> episodeLink(e, s.name)).orElse(null),
-                scheduler.nextRun(s.id).map(AdminSupport::when).orElse(s.cron == null ? "Not scheduled" : cronText(s.cron)),
+                !s.enabled ? "Disabled" : scheduler.nextRun(s.id).map(AdminSupport::when).orElse(cronText(s.cron)),
                 fresh, episodes);
     }
 

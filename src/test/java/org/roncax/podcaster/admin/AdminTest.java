@@ -82,4 +82,17 @@ class AdminTest {
                 .body(containsString("reddit"))
                 .body(containsString("rss"));
     }
+
+    @Test
+    void disabledShowIsNotAdvertisedAsScheduled() {
+        Show show = TestData.show("off");
+        QuarkusTransaction.requiringNew().run(() -> {
+            Show s = Show.findById(show.id);
+            s.cron = "0 7 * * *";
+            s.enabled = false;
+        });
+        String html = admin().get("/admin").then().statusCode(200).extract().asString();
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains(">Disabled<"), html);
+        org.junit.jupiter.api.Assertions.assertFalse(html.toLowerCase().contains("at 07:00"), html);
+    }
 }
