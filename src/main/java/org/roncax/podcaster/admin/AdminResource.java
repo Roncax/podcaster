@@ -42,7 +42,6 @@ public class AdminResource {
                                               List<DiffRow> diff, String editorBody, String note, List<String> errors,
                                               List<Show> shows);
         static native TemplateInstance dryRun(PromptDryRun.Result result, String error);
-        static native TemplateInstance episode(Show show, Episode episode);
     }
 
     @Inject PodcasterConfig config;
@@ -98,13 +97,6 @@ public class AdminResource {
     public Response logout() {
         NewCookie cookie = new NewCookie.Builder(ApiKeyFilter.COOKIE).value("").path("/").maxAge(0).build();
         return Response.seeOther(URI.create("/admin/login")).cookie(cookie).build();
-    }
-
-    @GET
-    @Path("/episodes/{id}")
-    public TemplateInstance episodePage(@RestPath long id) {
-        Episode episode = Episode.<Episode>findByIdOptional(id).orElseThrow(NotFoundException::new);
-        return Templates.episode(Show.findById(episode.showId), episode);
     }
 
     @GET

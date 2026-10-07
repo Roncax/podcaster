@@ -431,12 +431,12 @@ and put at the top of `app.css` (after nothing, before `@import "tailwindcss";`)
   <audio controls preload="none" src="{src}" class="w-full"></audio>
   {#if chapters}
   <ol class="flex flex-col gap-1" role="list">
-    {#for c in chapters}
+    {#for c in chapters}{#if c.time}
     <li class="flex items-baseline gap-3">
       <a href="{src}#t={c.start}" data-start="{c.start}" class="mono rounded-md px-2 py-1 text-xs text-info no-underline ring-1 ring-line aria-[current]:bg-accent aria-[current]:text-white">{c.time}</a>
       <span class="text-sm">{c.title}</span>
     </li>
-    {/for}
+    {/if}{/for}
   </ol>
   {/if}
 </podcast-player>
