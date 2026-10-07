@@ -1,0 +1,9 @@
+<div class="mt-2 flex flex-col gap-2 rounded-xl bg-ground p-4 text-sm">
+{#if error}
+  <p role="alert" class="m-0 font-medium text-fail">{error}</p>
+{#else}
+  <p class="m-0"><strong>{result.title}</strong> <span class="mono text-xs text-muted">· prompt versions {result.promptVersions}</span></p>
+  <p class="m-0 whitespace-pre-wrap">{result.description}</p>
+  {#for part in result.scriptParts}<p class="m-0 leading-relaxed">{part}</p>{/for}
+{/if}
+</div>

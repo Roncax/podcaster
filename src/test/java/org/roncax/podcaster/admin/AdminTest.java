@@ -4,12 +4,14 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.specification.RequestSpecification;
+import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.roncax.podcaster.domain.Show;
+import org.roncax.podcaster.domain.*;
 import org.roncax.podcaster.support.*;
 
 @QuarkusTest
@@ -31,64 +33,66 @@ class AdminTest {
 
     @Test
     void redirectsToLoginWithoutCookie() {
-        given().redirects().follow(false).get("/admin/shows").then().statusCode(303).header("Location", endsWith("/admin/login"));
+        given().redirects().follow(false).get("/admin").then().statusCode(303).header("Location", endsWith("/admin/login"));
     }
 
     @Test
-    void loginSetsCookie() {
+    void loginSetsCookieAndOpensDashboard() {
         given().redirects().follow(false).formParam("key", "test-api-key-0123456789").post("/admin/login")
-                .then().statusCode(303).cookie("podcaster_key", "test-api-key-0123456789");
+                .then().statusCode(303).cookie("podcaster_key", "test-api-key-0123456789").header("Location", endsWith("/admin"));
         given().formParam("key", "nope").post("/admin/login").then().statusCode(200).body(containsString("Wrong key"));
     }
 
     @Test
-    void listsShows() {
-        Show show = TestData.show("listed");
-        admin().get("/admin/shows").then().statusCode(200).body(containsString("Show listed"))
-                .body(containsString("/feeds/" + show.feedToken + "/listed.xml"));
+    void dashboardShowsShowsLatestEpisodeRunsAndAttention() {
+        Show show = TestData.show("dash");
+        Source source = TestData.source(show.id, "http://feed/x");
+        QuarkusTransaction.requiringNew().run(() -> {
+            Source s = Source.findById(source.id);
+            s.lastError = "HTTP 404 from http://feed/x";
+            Run ok = new Run();
+            ok.showId = show.id; ok.trigger = RunTrigger.MANUAL; ok.status = RunStatus.DONE; ok.stage = RunStage.PUBLISH; ok.since = Instant.now();
+            ok.persist();
+            Episode e = new Episode();
+            e.runId = ok.id; e.showId = show.id; e.title = "Episodio di prova"; e.audioPath = "dash/1.mp3";
+            e.durationSeconds = 245.0; e.publishedAt = Instant.now();
+            e.persist();
+            Run failed = new Run();
+            failed.showId = show.id; failed.trigger = RunTrigger.SCHEDULED; failed.status = RunStatus.FAILED; failed.stage = RunStage.TTS;
+            failed.error = "TTS: Piper returned HTTP 503"; failed.since = Instant.now();
+            failed.persist();
+        });
+
+        admin().get("/admin").then().statusCode(200)
+                .body(containsString("Show dash"))
+                .body(containsString("Episodio di prova"))
+                .body(containsString("/media/" + show.feedToken + "/dash/1.mp3"))
+                .body(containsString("4:05"))
+                .body(containsString("Source failing"))
+                .body(containsString("HTTP 404 from http://feed/x"))
+                .body(containsString("TTS: Piper returned HTTP 503"))
+                .body(containsString("aria-current=\"page\""));
     }
 
     @Test
-    void regeneratesFeedToken() {
-        Show show = TestData.show("rotated");
-        admin().post("/admin/shows/" + show.id + "/feed-token").then().statusCode(303)
-                .header("Location", endsWith("/admin/shows/" + show.id));
-        String token = io.quarkus.narayana.jta.QuarkusTransaction.requiringNew()
-                .call(() -> Show.<Show>findById(show.id).feedToken);
-        org.junit.jupiter.api.Assertions.assertNotEquals(show.feedToken, token);
-        given().get(show.feedPath()).then().statusCode(404);
-        given().get("/feeds/" + token + "/rotated.xml").then().statusCode(200);
+    void settingsListsModelsVoicesAndConnectors() {
+        admin().get("/admin/settings").then().statusCode(200)
+                .body(containsString("fake"))
+                .body(containsString("it_IT-paola-medium"))
+                .body(containsString("reddit"))
+                .body(containsString("rss"));
     }
 
     @Test
-    void createsShowFromForm() {
-        String location = admin()
-                .formParam("name", "Morning News").formParam("slug", "morning").formParam("language", "it")
-                .formParam("voiceId", "it_IT-paola-medium").formParam("writerModel", "fake").formParam("rankerModel", "")
-                .formParam("lengthScale", "1.0").formParam("targetDurationMinutes", "20").formParam("minItems", "3")
-                .formParam("retainEpisodes", "30").formParam("cron", "0 7 * * *").formParam("enabled", "on")
-                .post("/admin/shows").then().statusCode(303).extract().header("Location");
-        admin().get(location).then().statusCode(200).body(containsString("Morning News")).body(containsString("Run now"));
-    }
-
-    @Test
-    void invalidFormIsRerenderedWithErrors() {
-        admin().formParam("name", "X").formParam("slug", "x").formParam("language", "it")
-                .formParam("voiceId", "it_IT-paola-medium").formParam("writerModel", "gpt")
-                .formParam("targetDurationMinutes", "abc")
-                .post("/admin/shows").then().statusCode(200)
-                .body(containsString("writerModel &#39;gpt&#39;"))
-                .body(containsString("targetDurationMinutes must be a number"));
-    }
-
-    @Test
-    void addsSourceAndTriggersRun() {
-        Show show = TestData.show("ui");
-        admin().formParam("connectorType", "rss").formParam("config", "url=" + wm.baseUrl() + "/uifeed")
-                .formParam("fetchFullText", "on")
-                .post("/admin/shows/" + show.id + "/sources").then().statusCode(303);
-        admin().get("/admin/shows/" + show.id).then().statusCode(200).body(containsString(wm.baseUrl() + "/uifeed"));
-        admin().post("/admin/shows/" + show.id + "/run").then().statusCode(200).body(containsString("id=\"runs\""));
-        admin().get("/admin/shows/" + show.id + "/runs").then().statusCode(200).body(containsString("<table"));
+    void disabledShowIsNotAdvertisedAsScheduled() {
+        Show show = TestData.show("off");
+        QuarkusTransaction.requiringNew().run(() -> {
+            Show s = Show.findById(show.id);
+            s.cron = "0 7 * * *";
+            s.enabled = false;
+        });
+        String html = admin().get("/admin").then().statusCode(200).extract().asString();
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains(">Disabled<"), html);
+        org.junit.jupiter.api.Assertions.assertFalse(html.toLowerCase().contains("at 07:00"), html);
     }
 }

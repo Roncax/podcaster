@@ -1,8 +1,0 @@
-<article>
-  {#if result.error}<p role="alert"><strong>Error:</strong> {result.error}</p>{/if}
-  <p>{result.items.size} item(s) in the last 7 days</p>
-  <ul>{#for i in result.items}<li><a href="{i.url}">{i.title}</a> <small>{i.publishedAt ?: ''}</small></li>{/for}</ul>
-  {#if result.sampleText}
-  <details><summary>Extracted text of the first item</summary><p class="script">{result.sampleText}</p></details>
-  {/if}
-</article>

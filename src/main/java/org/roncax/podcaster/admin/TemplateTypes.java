@@ -13,4 +13,11 @@ import org.roncax.podcaster.ingestion.RawItem;
 @TemplateData(target = RawItem.class)
 @TemplateData(target = SourceTestResult.class)
 @TemplateData(target = ShowForm.class)
+@TemplateData(target = AdminViews.StageDot.class)
+@TemplateData(target = AdminViews.Step.class)
+@TemplateData(target = AdminViews.ChapterView.class)
+@TemplateData(target = AdminViews.SourceLink.class)
+@TemplateData(target = AdminViews.LiveRun.class)
+@TemplateData(target = EpisodePages.EpisodeView.class)
+@TemplateData(target = PromptAdminViews.OverrideRow.class)
 public class TemplateTypes {}

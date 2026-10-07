@@ -77,6 +77,7 @@ public class RunOrchestrator {
             r.status = status;
             r.error = error;
             r.finishedAt = Instant.now();
+            r.progress = null;
         });
     }
 }

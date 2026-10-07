@@ -33,7 +33,7 @@ class ScriptWriterTest {
         return s;
     }
 
-    Map<Long, Item> items = Map.of(1L, item(1, "Alpha full text."), 2L, item(2, "Beta full text."), 3L, item(3, "Gamma full text."));
+    Map<Long, Item> items = new java.util.HashMap<>(Map.of(1L, item(1, "Alpha full text."), 2L, item(2, "Beta full text."), 3L, item(3, "Gamma full text.")));
     Outline outline = new Outline(900, List.of(
             new OutlineSegment("Story A", List.of(1L, 2L), 400),
             new OutlineSegment("Story B", List.of(3L), 300)));
@@ -96,4 +96,27 @@ class ScriptWriterTest {
                 () -> new ScriptWriter(12000).write(truncating, TestPrompts.seeded(), show(), outline, items, LocalDate.now()));
         assertTrue(ex.getMessage().contains("token limit"), ex.getMessage());
     }
+
+    @Test
+    void showNotesGroupLinksByStoryWithRedditThread() {
+        items.get(3L).discussionUrl = "https://www.reddit.com/r/italy/comments/abc/x/";
+        String notes = ScriptWriter.showNotes("Notes.", "it", outline, items);
+        assertEquals("""
+                Notes.
+
+                Fonti:
+                1. Story A
+                - Title 1 — https://news.example/1
+                - Title 2 — https://news.example/2
+                2. Story B
+                - Title 3 — https://news.example/3
+                - Discussione su Reddit — https://www.reddit.com/r/italy/comments/abc/x/""", notes);
+    }
+
+    @Test
+    void showNotesUseEnglishLabelsForOtherLanguages() {
+        String notes = ScriptWriter.showNotes("Notes.", "en", outline, items);
+        assertTrue(notes.contains("\n\nSources:\n1. Story A\n"), notes);
+    }
+
 }

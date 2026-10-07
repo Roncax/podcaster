@@ -20,12 +20,14 @@ public class PublishStage implements Stage {
     @Inject AudioStorage storage;
     @Inject RetentionService retention;
     @Inject PodcasterConfig config;
+    @Inject RunProgress progress;
 
     @Override
     public RunStage stage() { return RunStage.PUBLISH; }
 
     @Override
     public StageResult execute(Run run) throws Exception {
+        progress.update(run.id, "Publishing");
         Show show = QuarkusTransaction.requiringNew().call(() -> Show.<Show>findById(run.showId));
         Episode episode = QuarkusTransaction.requiringNew().call(() -> Episode.findByRun(run.id)
                 .orElseThrow(() -> new StageException("Run " + run.id + " has no episode")));

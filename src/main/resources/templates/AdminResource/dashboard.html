@@ -1,0 +1,76 @@
+{#layout title="Dashboard" active="dashboard"}
+<header class="flex flex-wrap items-end gap-4">
+  <div class="flex flex-col gap-1">
+    <span class="mono text-xs tracking-wide text-muted">PODCASTER</span>
+    <h1 class="m-0 text-3xl font-bold">Dashboard</h1>
+  </div>
+  <div class="ml-auto flex gap-2.5">
+    <a href="/admin/shows#new-show" class="btn btn-primary">New show</a>
+  </div>
+</header>
+
+{#if shows.isEmpty}
+  {#emptyState title="No shows yet"}Create a show, add sources and press Run now.{/emptyState}
+{#else}
+<section aria-label="Shows" class="grid gap-5 md:grid-cols-2">
+  {#for s in shows}
+  <article class="card">
+    <div class="flex items-start gap-3">
+      <div class="flex flex-col gap-1">
+        <h2 class="m-0 text-xl font-semibold"><a href="/admin/shows/{s.id}" class="text-ink no-underline hover:underline">{s.name}</a></h2>
+        <span class="text-[13px] text-muted">{s.meta}</span>
+      </div>
+      <span class="ml-auto">{#badge tone=s.lastRunTone}{s.lastRunLabel}{/badge}</span>
+    </div>
+    {#if s.latest}
+    <div class="flex flex-col gap-2 rounded-xl bg-ground p-3">
+      <a href="/admin/episodes/{s.latest.id}" class="text-sm font-medium text-ink no-underline hover:underline">{s.latest.title}</a>
+      {#if s.latest.audioUrl}<audio controls preload="none" src="{s.latest.audioUrl}" class="w-full"></audio>{/if}
+      <span class="mono text-xs text-muted">{s.latest.date} · {s.latest.duration}</span>
+    </div>
+    {#else}
+      {#emptyState title="No episodes yet"}Press Run now to produce the first episode.{/emptyState}
+    {/if}
+    <dl class="m-0 grid grid-cols-3 gap-3 text-sm">
+      <div class="flex flex-col gap-0.5"><dt class="text-xs text-muted">Next run</dt><dd class="m-0 font-medium">{s.nextRun}</dd></div>
+      <div class="flex flex-col gap-0.5"><dt class="text-xs text-muted">Episodes</dt><dd class="m-0 font-medium">{s.episodes}</dd></div>
+      <div class="flex flex-col gap-0.5"><dt class="text-xs text-muted">Fresh items (24 h)</dt><dd class="m-0 font-medium">{s.freshItems}</dd></div>
+    </dl>
+    <div class="flex flex-wrap gap-2.5">
+      <form method="post" action="/admin/shows/{s.id}/run"><button type="submit" class="btn btn-primary">Run now</button></form>
+      <a href="/admin/shows/{s.id}" class="btn btn-secondary">Open show</a>
+      <a href="{s.feedPath}" class="btn btn-secondary">Feed</a>
+    </div>
+  </article>
+  {/for}
+</section>
+{/if}
+
+<section class="flex flex-wrap items-start gap-5">
+  <div class="card grow-[999] basis-[520px] min-w-0">
+    <h2 class="m-0 text-base font-semibold">Recent runs</h2>
+    {#if runs.isEmpty}<p class="m-0 text-sm text-muted">No runs yet.</p>{/if}
+    <ul class="m-0 flex flex-col p-0" role="list">
+      {#for r in runs}
+      <li class="flex flex-wrap items-center gap-3.5 border-t border-line py-3 first:border-t-0">
+        <span class="mono w-12 text-xs text-muted">#{r.id}</span>
+        <a href="/admin/shows/{r.showId}" class="min-w-36 text-sm font-medium text-ink no-underline hover:underline">{r.showName}</a>
+        {#stages stages=r.stages label=r.status /}
+        {#badge tone=r.tone}{r.status}{/badge}
+        <span class="ml-auto text-[13px] text-muted">{r.when}</span>
+      </li>
+      {/for}
+    </ul>
+  </div>
+  <aside class="card grow basis-72" aria-label="Needs attention">
+    <h2 class="m-0 text-base font-semibold">Needs attention</h2>
+    {#if attention.isEmpty}<p class="m-0 text-sm text-muted">All good.</p>{/if}
+    {#for a in attention}
+    <a href="{a.href}" class="flex flex-col gap-0.5 rounded-xl p-3 no-underline {#when a.tone}{#is 'fail'}bg-fail-bg text-fail{#else}bg-warn-bg text-warn{/when}">
+      <span class="text-sm font-medium">{a.title}</span>
+      <span class="text-[13px] opacity-90">{a.detail}</span>
+    </a>
+    {/for}
+  </aside>
+</section>
+{/layout}

@@ -1,0 +1,23 @@
+{#layout title="Episodes" active="episodes"}
+<header class="flex flex-wrap items-end gap-4">
+  <h1 class="m-0 text-3xl font-bold">Episodes</h1>
+  <form method="get" action="/admin/episodes" class="ml-auto flex items-end gap-2">
+    <label class="field"><span class="field-label">Show</span>
+      <select class="field-input" name="show"><option value="">All shows</option>{#for s in shows}<option value="{s.id}" {#if selected == s.id}selected{/if}>{s.name}</option>{/for}</select></label>
+    <button type="submit" class="btn btn-secondary">Filter</button>
+  </form>
+</header>
+<section class="grid gap-4 md:grid-cols-2" aria-label="Episodes">
+  {#for e in episodes}
+  <article class="card">
+    <div class="flex flex-col gap-1">
+      <a href="/admin/episodes/{e.id}" class="text-base font-semibold text-ink no-underline hover:underline">{e.title}</a>
+      <span class="mono text-xs text-muted">{e.showName} · {e.date} · {e.duration}</span>
+    </div>
+    {#if e.audioUrl}<audio controls preload="none" src="{e.audioUrl}" class="w-full"></audio>{/if}
+  </article>
+  {#else}
+  {#emptyState title="No episodes yet"}Run a show to produce its first episode.{/emptyState}
+  {/for}
+</section>
+{/layout}

@@ -9,7 +9,7 @@ Self-hosted service that turns news sources into a daily ~20-minute podcast epis
 1. `cp .env.example .env` and set `PODCASTER_API_KEY`, `PODCASTER_BASE_URL`, the DB password, and enable at least one LLM slot.
 2. `docker compose up -d --build` (add `--profile ollama` for a local Ollama).
 3. Open `http://<server>:8080/admin`, log in with the API key, create a Show, add sources, press **Run now**.
-4. Subscribe to the feed URL shown on the show page, `http://<server>:8080/feeds/<token>/<slug>.xml`, in your podcast app (AntennaPod, Pocket Casts, …). The random per-show token is the only protection of the feed and its audio: treat the URL as a password, and use **Regenerate feed URL** on the show page if it leaks (subscribers must resubscribe). Never expose `/admin`, `/api` or `/q` to the internet.
+4. Subscribe to the feed URL shown on the show page, `http://<server>:8080/feeds/<token>/<slug>.xml`, in your podcast app (AntennaPod, Pocket Casts, …). The random per-show token is the only protection of the feed and its audio: treat the URL as a password, and use **Regenerate feed URL** in the show's Settings tab if it leaks (subscribers must resubscribe). Never expose `/admin`, `/api` or `/q` to the internet.
 
 Example sources: ANSA `https://www.ansa.it/sito/ansait_rss.xml`, Il Post sections `https://www.ilpost.it/italia/feed/`, `https://www.ilpost.it/mondo/feed/`.
 
@@ -60,6 +60,10 @@ public class ExampleSiteConnector implements SourceConnector {
 ```
 
 It then appears in the admin UI connector list. For cleaner article text on a specific site, implement `ContentExtractor` instead (see `AnsaContentExtractor`).
+
+## Admin UI
+
+`http://<server>:8080/admin` (log in with `PODCASTER_API_KEY`): dashboard of shows and runs, live run progress, sources per show (RSS, Reddit), episodes with a chapter player and per-story sources, prompt versions with diff, editor and dry-run, and read-only settings. Assets (Tailwind, fonts, htmx, CodeMirror) are bundled by the Quarkus Web Bundler at build time: no Node and no CDN, so it works offline on your LAN.
 
 ## Database UI
 

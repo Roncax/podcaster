@@ -1,0 +1,56 @@
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-sans/700.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --color-ink: #16202B;
+  --color-ink-2: #26323F;
+  --color-ground: #F4F5F7;
+  --color-panel: #FFFFFF;
+  --color-line: #E3E7EC;
+  --color-muted: #5B6878;
+  --color-accent: #E4572E;
+  --color-accent-soft: #FDF1EC;
+  --color-ok: #1E5E37;
+  --color-ok-bg: #E3F2E8;
+  --color-ok-dot: #2E7D4F;
+  --color-warn: #8A4B00;
+  --color-warn-bg: #FFF4E5;
+  --color-fail: #8F1D14;
+  --color-fail-bg: #FDE8E7;
+  --color-fail-dot: #B42318;
+  --color-info: #1F5F8B;
+  --color-info-bg: #EEF4FB;
+  --color-run: #1D4ED8;
+  --color-run-bg: #E3ECFD;
+  --color-run-dot: #2563EB;
+  --radius-card: 14px;
+}
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 h-11 px-4 rounded-[10px] text-sm font-semibold no-underline cursor-pointer whitespace-nowrap; }
+  .btn-sm { @apply h-9 px-3 text-[13px] rounded-lg; }
+  .btn-primary { @apply bg-ink text-white hover:bg-ink-2; }
+  .btn-accent { @apply bg-accent text-white hover:brightness-95; }
+  .btn-secondary { @apply bg-panel text-ink ring-1 ring-[#C9D1DB] hover:bg-ground; }
+  .card { @apply bg-panel rounded-(--radius-card) ring-1 ring-line p-5 flex flex-col gap-4; }
+  .chip { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-panel ring-1 ring-line text-[#3D4957]; }
+  .field { @apply flex flex-col gap-1.5; }
+  .field-label { @apply text-[13px] font-medium; }
+  .field-input { @apply h-11 rounded-[10px] ring-1 ring-[#C9D1DB] px-3 bg-panel text-[15px] focus:outline-2 focus:outline-accent; }
+  textarea.field-input { @apply h-auto py-2.5 font-mono text-[13px] leading-relaxed; }
+  .link { @apply text-info underline-offset-2 hover:underline; }
+  .muted { @apply text-muted; }
+  .mono { @apply font-mono; }
+  .tab { @apply inline-flex items-center h-11 px-4 text-sm font-medium text-muted no-underline; }
+  .tab-active { @apply text-ink shadow-[inset_0_-2px_0_var(--color-accent)]; }
+  .diff-add { @apply bg-[#E6F4EA] text-[#14532D]; }
+  .diff-del { @apply bg-[#FDECEA] text-[#7F1D1D] line-through; }
+  .diff-same { @apply text-[#3D4957]; }
+}

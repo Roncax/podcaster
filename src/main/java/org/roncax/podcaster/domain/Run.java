@@ -18,6 +18,7 @@ public class Run extends PanacheEntityBase {
     public String error;
     public Instant startedAt = Instant.now();
     public Instant finishedAt;
+    public String progress;
 
     @JsonIgnore
     public boolean isFailed() {

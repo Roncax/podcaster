@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title} · Podcaster</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%276%27 fill=%27%23E4572E%27/%3E%3C/svg%3E">
+{#bundle /}
+{#if player??}{#bundle key="player" /}{/if}
+{#if editor??}{#bundle key="editor" /}{/if}
+</head>
+<body class="bg-ground text-ink font-sans antialiased">
+<div class="min-h-screen flex flex-wrap">
+  <nav aria-label="Main" class="grow basis-60 max-w-full sm:max-w-64 bg-ink text-slate-300 px-4 py-6 flex flex-col gap-7">
+    <a href="/admin" class="flex items-center gap-2.5 px-2 text-white no-underline">
+      <span class="size-3 rounded-full bg-accent ring-4 ring-accent/25" aria-hidden="true"></span>
+      <span class="text-lg font-bold">Podcaster</span>
+      <span class="ml-auto font-mono text-[11px] text-slate-400">ON AIR</span>
+    </a>
+    <ul class="flex flex-col gap-1" role="list">
+      <li><a href="/admin" {#if active is 'dashboard'}aria-current="page"{/if} class="flex h-10 items-center rounded-lg px-3 text-sm font-medium no-underline text-slate-300 hover:text-white aria-[current=page]:bg-ink-2 aria-[current=page]:text-white">Dashboard</a></li>
+      <li><a href="/admin/shows" {#if active is 'shows'}aria-current="page"{/if} class="flex h-10 items-center rounded-lg px-3 text-sm font-medium no-underline text-slate-300 hover:text-white aria-[current=page]:bg-ink-2 aria-[current=page]:text-white">Shows</a></li>
+      <li><a href="/admin/episodes" {#if active is 'episodes'}aria-current="page"{/if} class="flex h-10 items-center rounded-lg px-3 text-sm font-medium no-underline text-slate-300 hover:text-white aria-[current=page]:bg-ink-2 aria-[current=page]:text-white">Episodes</a></li>
+      <li><a href="/admin/prompts" {#if active is 'prompts'}aria-current="page"{/if} class="flex h-10 items-center rounded-lg px-3 text-sm font-medium no-underline text-slate-300 hover:text-white aria-[current=page]:bg-ink-2 aria-[current=page]:text-white">Prompts</a></li>
+      <li><a href="/admin/settings" {#if active is 'settings'}aria-current="page"{/if} class="flex h-10 items-center rounded-lg px-3 text-sm font-medium no-underline text-slate-300 hover:text-white aria-[current=page]:bg-ink-2 aria-[current=page]:text-white">Settings</a></li>
+    </ul>
+    <div class="mt-auto flex flex-col gap-2 border-t border-ink-2 px-2 pt-4 text-xs text-slate-400">
+      <a href="/q/swagger-ui" class="text-slate-300 no-underline hover:text-white">API docs</a>
+      <form method="post" action="/admin/logout"><button type="submit" class="cursor-pointer text-slate-300 hover:text-white">Log out</button></form>
+    </div>
+  </nav>
+  <main class="grow-[999] basis-[560px] min-w-0 px-5 py-7 md:px-10 flex flex-col gap-6">
+{nested-content}
+  </main>
+</div>
+</body>
+</html>

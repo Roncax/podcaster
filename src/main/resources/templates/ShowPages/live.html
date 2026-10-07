@@ -1,0 +1,17 @@
+{#if live}
+<section id="live-run" class="card" aria-live="polite" {#if live.running}hx-get="/admin/shows/{showId}/live" hx-trigger="every 3s" hx-swap="outerHTML"{/if}>
+  <div class="flex flex-wrap items-center gap-3">
+    {#badge tone=live.tone}{live.status}{/badge}
+    <h2 class="m-0 text-base font-semibold">Run #{live.id}</h2>
+    <span class="mono text-xs text-muted">{live.trigger} · started {live.started}</span>
+    <span class="ml-auto flex gap-2">
+      {#if live.episodeId}<a href="/admin/episodes/{live.episodeId}" class="btn btn-secondary btn-sm">Open episode</a>{/if}
+      {#if live.status == 'Failed'}<form method="post" action="/admin/runs/{live.id}/retry" hx-post="/admin/runs/{live.id}/retry" hx-target="#live-run" hx-swap="outerHTML"><button type="submit" class="btn btn-accent btn-sm">Retry</button></form>{/if}
+    </span>
+  </div>
+  {#stepper steps=live.steps progress=live.progress /}
+  {#if live.error}<p class="m-0 rounded-lg bg-fail-bg px-3 py-2 text-sm text-fail">{live.error}</p>{/if}
+</section>
+{#else}
+<section id="live-run" class="card"><p class="m-0 text-sm text-muted">No runs yet. Press Run now.</p></section>
+{/if}

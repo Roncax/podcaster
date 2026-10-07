@@ -14,7 +14,8 @@ public final class ScriptChunker {
 
     public static List<TtsChunk> chunk(List<String> parts, int maxChars, Duration chunkPause, Duration segmentPause) {
         List<TtsChunk> chunks = new ArrayList<>();
-        for (String part : parts) {
+        for (int partIndex = 0; partIndex < parts.size(); partIndex++) {
+            String part = parts.get(partIndex);
             List<String> texts = new ArrayList<>();
             for (String paragraph : PARAGRAPH.split(part)) {
                 String p = paragraph.trim();
@@ -34,7 +35,7 @@ public final class ScriptChunker {
             }
             for (int i = 0; i < texts.size(); i++) {
                 Duration pause = i == texts.size() - 1 ? segmentPause : chunkPause;
-                chunks.add(new TtsChunk(chunks.size(), texts.get(i), pause));
+                chunks.add(new TtsChunk(chunks.size(), texts.get(i), pause, partIndex));
             }
         }
         return chunks;

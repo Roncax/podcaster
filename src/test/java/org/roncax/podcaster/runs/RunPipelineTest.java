@@ -61,6 +61,10 @@ class RunPipelineTest {
         Episode episode = QuarkusTransaction.requiringNew().call(() -> Episode.findByRun(run.id).orElseThrow());
         assertEquals("Test episode", episode.title);
         assertEquals(3, episode.scriptParts.size()); // intro + 1 segment + outro
+        assertEquals(List.of("Intro", "Top story", "Outro"), episode.chapters.stream().map(Chapter::title).toList());
+        assertEquals(0.0, episode.chapters.get(0).startSeconds(), 0.001);
+        assertTrue(episode.chapters.get(1).startSeconds() > 0);
+        assertEquals(3, episode.chapters.get(1).itemIds().size());
         assertTrue(episode.durationSeconds > 0);
         assertTrue(storage.exists(episode.audioPath));
         assertEquals("pipe/" + episode.id + ".mp3", episode.audioPath);
@@ -132,7 +136,7 @@ class RunPipelineTest {
         io.quarkus.test.junit.QuarkusMock.installMockForType(new org.roncax.podcaster.tts.AudioAssembler("ffmpeg", "64k") {
             @Override
             public org.roncax.podcaster.tts.AssembledAudio assemble(List<java.nio.file.Path> chunks, List<java.time.Duration> pauses,
-                    java.nio.file.Path out, org.roncax.podcaster.tts.Mp3Tags tags) {
+                    List<Integer> parts, java.nio.file.Path out, org.roncax.podcaster.tts.Mp3Tags tags) {
                 throw new OutOfMemoryError("simulated");
             }
         }, org.roncax.podcaster.tts.AudioAssembler.class);
@@ -141,5 +145,28 @@ class RunPipelineTest {
 
         assertEquals(RunStatus.FAILED, run.status);
         assertTrue(run.error.contains("simulated"), run.error);
+    }
+
+    @Test
+    void runReportsProgressAndClearsItWhenDone() {
+        stubFeed("/p1", "/p2");
+        java.util.List<String> seen = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        io.quarkus.test.junit.QuarkusMock.installMockForType(new RunProgress() {
+            @Override
+            public void update(long runId, String text) {
+                if (text != null) seen.add(text);
+                super.update(runId, text);
+            }
+        }, RunProgress.class);
+
+        Run done = TestData.awaitRun(launcher.launch(show.id, RunTrigger.MANUAL));
+
+        assertEquals(RunStatus.DONE, done.status, done.error);
+        assertNull(done.progress, "progress is cleared when the run finishes");
+        java.util.List<String> expectedInOrder = java.util.List.of("Fetched 1/1 sources, 2 new items", "Ranking 2 items",
+                "Writing segment 1 of 1", "Writing intro and outro", "Encoding MP3", "Publishing");
+        java.util.List<String> filtered = seen.stream().filter(expectedInOrder::contains).toList();
+        assertEquals(expectedInOrder, filtered, seen.toString());
+        assertTrue(seen.contains("Synthesizing chunk 3 of 3"), seen.toString());
     }
 }

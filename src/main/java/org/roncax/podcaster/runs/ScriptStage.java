@@ -24,6 +24,7 @@ public class ScriptStage implements Stage {
     @Inject ScriptWriter writer;
     @Inject VoiceCalibrationService calibration;
     @Inject PromptResolver prompts;
+    @Inject RunProgress progress;
 
     @Override
     public RunStage stage() { return RunStage.SCRIPT; }
@@ -39,7 +40,9 @@ public class ScriptStage implements Stage {
                 .stream().collect(Collectors.toMap(i -> i.id, Function.identity())));
 
         PromptSet promptSet = prompts.resolve(show.id, PromptResolver.Mode.PRODUCTION);
-        Script script = writer.write(models.get(show.writerModel), promptSet, show, outline, items, LocalDate.now());
+        int segments = outline.segments().size();
+        Script script = writer.write(models.get(show.writerModel), promptSet, show, outline, items, LocalDate.now(),
+                i -> progress.update(run.id, i < segments ? "Writing segment " + (i + 1) + " of " + segments : "Writing intro and outro"));
 
         QuarkusTransaction.requiringNew().run(() -> {
             Episode e = Episode.findById(episode.id);

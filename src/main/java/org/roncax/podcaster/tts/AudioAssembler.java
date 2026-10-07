@@ -29,17 +29,21 @@ public class AudioAssembler {
         this.bitrate = bitrate;
     }
 
-    public AssembledAudio assemble(List<Path> wavChunks, List<Duration> pausesAfter, Path outMp3, Mp3Tags tags)
+    public AssembledAudio assemble(List<Path> wavChunks, List<Duration> pausesAfter, List<Integer> partOfChunk, Path outMp3, Mp3Tags tags)
             throws IOException, InterruptedException {
         if (wavChunks.isEmpty()) throw new IllegalArgumentException("No audio chunks to assemble");
         Wav first = null;
         ByteArrayOutputStream pcm = new ByteArrayOutputStream();
+        List<Double> partStarts = new java.util.ArrayList<>();
         for (int i = 0; i < wavChunks.size(); i++) {
             Wav wav = Wav.parse(Files.readAllBytes(wavChunks.get(i)));
             if (first == null) {
                 first = wav;
             } else if (!first.sameFormat(wav)) {
                 throw new IllegalStateException("Chunk " + wavChunks.get(i).getFileName() + " has a different audio format");
+            }
+            if (i == 0 || !partOfChunk.get(i).equals(partOfChunk.get(i - 1))) {
+                partStarts.add((double) pcm.size() / first.bytesPerSecond());
             }
             pcm.writeBytes(wav.pcm());
             long silence = Math.round(pausesAfter.get(i).toMillis() / 1000.0 * first.bytesPerSecond());
@@ -58,7 +62,7 @@ public class AudioAssembler {
         } finally {
             Files.deleteIfExists(wavFile);
         }
-        return new AssembledAudio(outMp3, duration, Files.size(outMp3));
+        return new AssembledAudio(outMp3, duration, Files.size(outMp3), List.copyOf(partStarts));
     }
 
     private void encode(Path wav, Path mp3, Mp3Tags tags) throws IOException, InterruptedException {

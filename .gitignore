@@ -72,5 +72,8 @@ nb-configuration.xml
 # local secrets
 .env
 
+# Quarkus Web Bundler (mvnpm packages unpacked at build time)
+node_modules/
+
 # Synology deployment data
 deploy/synology/data/

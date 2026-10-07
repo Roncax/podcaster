@@ -73,7 +73,7 @@ class PromptAdminTest {
         admin().formParam("rank", "1").formParam("segment", "").formParam("framing", "").formParam("json_repair", "")
                 .post("/admin/shows/" + show.id + "/prompts").then().statusCode(303);
         assertEquals(Map.of(PromptKey.RANK, 1), registry.overrides(show.id));
-        admin().get("/admin/shows/" + show.id).then().statusCode(200).body(containsString("Prompt overrides"));
+        admin().get("/admin/shows/" + show.id + "?tab=prompts").then().statusCode(200).body(containsString("Prompt overrides"));
         admin().formParam("rank", "").formParam("segment", "").formParam("framing", "").formParam("json_repair", "")
                 .post("/admin/shows/" + show.id + "/prompts").then().statusCode(303);
         assertTrue(registry.overrides(show.id).isEmpty());
@@ -94,5 +94,18 @@ class PromptAdminTest {
         FakeChatModelRegistry.install(new FakeChatModel().responder(prompt -> { throw new RuntimeException("connection refused by model host"); }));
         admin().formParam("showId", String.valueOf(show.id)).post("/admin/prompts/dry-run").then().statusCode(200)
                 .body(containsString("connection refused by model host"));
+    }
+
+    @Test
+    void formWorksWithoutIsland() {
+        String html = admin().get("/admin/prompts/json_repair").then().statusCode(200).extract().asString();
+        assertTrue(html.contains("data-prompt-editor"), "editor island hook");
+        assertTrue(html.contains("name=\"body\""), "plain textarea is the submitted field");
+        assertTrue(html.contains("data-prompt-diff"), "diff island hook");
+        assertTrue(html.contains("/static/bundle/editor"), "editor bundle loaded");
+        assertTrue(html.contains("data-insert-var=\"{error}\""), "variable chips");
+        admin().formParam("body", REPAIR_V2).formParam("note", "plain form").post("/admin/prompts/json_repair/versions")
+                .then().statusCode(303);
+        assertEquals(2, registry.labels(PromptKey.JSON_REPAIR).get(PromptLabel.DRAFT));
     }
 }

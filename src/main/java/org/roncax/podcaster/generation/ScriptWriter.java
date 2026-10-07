@@ -32,9 +32,17 @@ public class ScriptWriter {
     }
 
     public Script write(ChatModel model, PromptSet prompts, Show show, Outline outline, Map<Long, Item> items, LocalDate date) {
+        return write(model, prompts, show, outline, items, date, i -> {});
+    }
+
+    /** {@code onSegment} gets the 0-based segment index before each segment, then {@code segments.size()} before intro/outro. */
+    public Script write(ChatModel model, PromptSet prompts, Show show, Outline outline, Map<Long, Item> items, LocalDate date,
+                        java.util.function.IntConsumer onSegment) {
         List<String> segments = new ArrayList<>();
         String previousTail = null;
-        for (OutlineSegment seg : outline.segments()) {
+        for (int i = 0; i < outline.segments().size(); i++) {
+            onSegment.accept(i);
+            OutlineSegment seg = outline.segments().get(i);
             List<Item> sourceItems = seg.itemIds().stream().map(items::get).filter(Objects::nonNull).toList();
             String prompt = Prompts.segment(prompts, show.language, seg.headline(), seg.words(), sources(sourceItems), previousTail, show.focusPrompt);
             ChatResponse response = model.chat(UserMessage.from(prompt));
@@ -47,6 +55,7 @@ public class ScriptWriter {
             previousTail = tail(text);
         }
         List<String> headlines = outline.segments().stream().map(OutlineSegment::headline).toList();
+        onSegment.accept(outline.segments().size());
         Framing framing = JsonChat.ask(model, Prompts.framing(prompts, show.name, show.language, date, headlines), Framing.class, prompts);
         String intro = TtsTextNormalizer.normalize(framing.intro(), show.language);
         String outro = TtsTextNormalizer.normalize(framing.outro(), show.language);
@@ -79,12 +88,20 @@ public class ScriptWriter {
     }
 
     static String showNotes(String description, String language, Outline outline, Map<Long, Item> items) {
-        String label = language != null && language.startsWith("it") ? "Fonti" : "Sources";
+        boolean italian = language != null && language.startsWith("it");
         StringBuilder sb = new StringBuilder(description == null ? "" : description.trim());
-        sb.append("\n\n").append(label).append(":\n");
-        for (Long id : outline.itemIds()) {
-            Item item = items.get(id);
-            if (item != null) sb.append("- ").append(item.title).append(" — ").append(item.url).append('\n');
+        sb.append("\n\n").append(italian ? "Fonti" : "Sources").append(':');
+        int n = 0;
+        for (OutlineSegment seg : outline.segments()) {
+            sb.append('\n').append(++n).append(". ").append(seg.headline());
+            for (Long id : seg.itemIds()) {
+                Item item = items.get(id);
+                if (item == null) continue;
+                sb.append("\n- ").append(item.title).append(" — ").append(item.url);
+                if (item.discussionUrl != null && !item.discussionUrl.isBlank()) {
+                    sb.append("\n- ").append(italian ? "Discussione su Reddit" : "Reddit discussion").append(" — ").append(item.discussionUrl);
+                }
+            }
         }
         return sb.toString().trim();
     }

@@ -18,6 +18,7 @@ public class SelectStage implements Stage {
     @Inject StoryRanker ranker;
     @Inject PodcasterConfig config;
     @Inject PromptResolver prompts;
+    @Inject RunProgress progress;
 
     @Override
     public RunStage stage() { return RunStage.SELECT; }
@@ -28,6 +29,7 @@ public class SelectStage implements Stage {
         List<Item> candidates = QuarkusTransaction.requiringNew().call(() ->
                 Item.unusedCandidates(show.id, run.since, config.selection().maxCandidates()));
         if (candidates.size() < show.minItems) return StageResult.SKIP;
+        progress.update(run.id, "Ranking " + candidates.size() + " items");
 
         PromptSet promptSet = prompts.resolve(show.id, PromptResolver.Mode.PRODUCTION);
         Selection selection = ranker.rank(models.get(show.effectiveRankerModel()), promptSet,
