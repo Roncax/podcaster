@@ -142,4 +142,27 @@ class RunPipelineTest {
         assertEquals(RunStatus.FAILED, run.status);
         assertTrue(run.error.contains("simulated"), run.error);
     }
+
+    @Test
+    void runReportsProgressAndClearsItWhenDone() throws Exception {
+        stubFeed("/p1", "/p2");
+        wm.stubFor(post("/synthesize").willReturn(aResponse().withStatus(200).withFixedDelay(400)
+                .withBody(TestAudio.sineWav(0.2))));
+
+        long runId = launcher.launch(show.id, RunTrigger.MANUAL);
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+        Instant deadline = Instant.now().plusSeconds(60);
+        while (Instant.now().isBefore(deadline)) {
+            Run r = QuarkusTransaction.requiringNew().call(() -> Run.<Run>findById(runId));
+            if (r.progress != null) seen.add(r.progress);
+            if (r.status != RunStatus.RUNNING) break;
+            Thread.sleep(50);
+        }
+        Run done = TestData.awaitRun(runId);
+
+        assertEquals(RunStatus.DONE, done.status, done.error);
+        assertNull(done.progress, "progress is cleared when the run finishes");
+        assertTrue(seen.stream().anyMatch(p -> p.startsWith("Synthesizing chunk ")), seen.toString());
+        assertTrue(seen.stream().anyMatch(p -> p.startsWith("Fetched ") || p.startsWith("Ranking ") || p.startsWith("Writing ")), seen.toString());
+    }
 }

@@ -21,11 +21,18 @@ public class IngestionService {
     @Inject ConnectorRegistry registry;
     @Inject ContentExtractionService extraction;
 
+    public interface Progress { void update(int done, int total, int newItems); }
+
     public IngestionReport ingest(long showId, Instant since) {
+        return ingest(showId, since, (d, t, n) -> {});
+    }
+
+    public IngestionReport ingest(long showId, Instant since, Progress progress) {
         List<Source> sources = QuarkusTransaction.requiringNew()
                 .call(() -> Source.<Source>list("showId = ?1 and enabled = true order by id", showId));
         int added = 0;
         List<String> errors = new ArrayList<>();
+        int done = 0;
         for (Source source : sources) {
             try {
                 added += ingestSource(showId, source, since);
@@ -36,6 +43,7 @@ public class IngestionService {
                 errors.add(source.label() + ": " + message);
                 markSource(source.id, message);
             }
+            progress.update(++done, sources.size(), added);
         }
         return new IngestionReport(sources.size(), added, errors);
     }

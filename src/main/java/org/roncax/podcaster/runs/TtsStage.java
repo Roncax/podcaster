@@ -28,6 +28,7 @@ public class TtsStage implements Stage {
     @Inject AudioAssembler assembler;
     @Inject VoiceCalibrationService calibration;
     @Inject PodcasterConfig config;
+    @Inject RunProgress progress;
 
     public static Path workDir(PodcasterConfig config, long runId) {
         return Path.of(config.storage().workDir()).toAbsolutePath().resolve("run-" + runId);
@@ -53,7 +54,12 @@ public class TtsStage implements Stage {
         ExecutorService pool = Executors.newFixedThreadPool(Math.max(1, cfg.parallelism()));
         try {
             List<Future<Path>> futures = new ArrayList<>();
-            for (TtsChunk chunk : chunks) futures.add(pool.submit(() -> synthesize(dir, chunk, voice)));
+            java.util.concurrent.atomic.AtomicInteger synthesized = new java.util.concurrent.atomic.AtomicInteger();
+            for (TtsChunk chunk : chunks) futures.add(pool.submit(() -> {
+                Path file = synthesize(dir, chunk, voice);
+                progress.update(run.id, "Synthesizing chunk " + synthesized.incrementAndGet() + " of " + chunks.size());
+                return file;
+            }));
             for (Future<Path> future : futures) {
                 try {
                     files.add(future.get());
@@ -66,6 +72,7 @@ public class TtsStage implements Stage {
             pool.shutdownNow();
         }
 
+        progress.update(run.id, "Encoding MP3");
         AssembledAudio audio = assembler.assemble(files, chunks.stream().map(TtsChunk::pauseAfter).toList(),
                 dir.resolve("episode.mp3"),
                 new Mp3Tags(episode.title, "Podcaster", show.name, LocalDate.now().toString()));

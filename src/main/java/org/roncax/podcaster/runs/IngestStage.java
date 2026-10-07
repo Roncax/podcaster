@@ -14,6 +14,7 @@ import org.roncax.podcaster.notify.Notifier;
 public class IngestStage implements Stage {
     @Inject IngestionService ingestion;
     @Inject Notifier notifier;
+    @Inject RunProgress progress;
 
     @Override
     public RunStage stage() { return RunStage.INGEST; }
@@ -21,7 +22,8 @@ public class IngestStage implements Stage {
     @Override
     public StageResult execute(Run run) {
         Show show = QuarkusTransaction.requiringNew().call(() -> Show.<Show>findById(run.showId));
-        IngestionReport report = ingestion.ingest(run.showId, run.since);
+        IngestionReport report = ingestion.ingest(run.showId, run.since,
+                (done, total, n) -> progress.update(run.id, "Fetched " + done + "/" + total + " sources, " + n + " new items"));
         if (report.sources() == 0) throw new StageException("Show has no enabled sources");
         if (report.allFailed()) throw new StageException("All sources failed: " + String.join("; ", report.errors()));
         if (!report.errors().isEmpty()) {
