@@ -1,0 +1,54 @@
+# Synology Container Manager stack: create a Project with this folder as its path.
+# Pulls the images published to GHCR by .github/workflows/images.yml.
+# Reads .env from this folder; data lives in ./data so Hyper Backup can reach it.
+# caddy is the public entry (only /feeds and /media); point DSM's reverse proxy at PUBLIC_PORT.
+services:
+  podcaster:
+    image: ghcr.io/roncax/podcaster:${IMAGE_TAG:-latest}
+    env_file: .env
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/podcaster
+      PIPER_URL: ${PIPER_URL:-http://piper:5000}   # point at another host (e.g. a Raspberry Pi) if Piper can't run here
+      TZ: ${TZ:-Europe/Rome}
+    ports:
+      - "${PODCASTER_PORT:-8080}:8080"
+    volumes:
+      - ./data/audio:/data/audio   # must be owned by uid 185
+      - ./data/work:/data/work     # must be owned by uid 185
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: podcaster
+      POSTGRES_USER: ${DB_USER:-podcaster}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-podcaster}
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-podcaster} -d podcaster"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  piper:
+    image: ghcr.io/roncax/podcaster-piper:${IMAGE_TAG:-latest}
+    environment:
+      PIPER_DEFAULT_VOICE: ${PIPER_DEFAULT_VOICE:-it_IT-paola-medium}
+      PIPER_EXTRA_VOICES: ${PIPER_EXTRA_VOICES:-}
+    volumes:
+      - ./data/voices:/voices
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "${PUBLIC_PORT:-8091}:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - podcaster
+    restart: unless-stopped

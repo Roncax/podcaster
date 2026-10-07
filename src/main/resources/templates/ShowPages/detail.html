@@ -3,7 +3,7 @@
 <header class="flex flex-wrap items-center gap-4">
   <div class="flex flex-col gap-2">
     <h1 class="m-0 text-3xl font-bold">{show.name}</h1>
-    <ul class="m-0 flex flex-wrap gap-2 p-0" role="list">{#for c in chips}<li class="chip">{c}</li>{/for}<li><a href="/feeds/{show.slug}.xml" class="chip mono no-underline">/feeds/{show.slug}.xml</a></li></ul>
+    <ul class="m-0 flex flex-wrap gap-2 p-0" role="list">{#for c in chips}<li class="chip">{c}</li>{/for}<li><a href="{show.feedPath}" class="chip mono no-underline">Feed URL</a></li></ul>
   </div>
   <div class="ml-auto flex gap-2.5">
     <a href="/admin/prompts" class="btn btn-secondary">Dry-run drafts</a>
@@ -112,6 +112,14 @@
   <h2 class="m-0 text-base font-semibold">Settings</h2>
   <p class="m-0 text-sm text-muted">Schedule: {cronText}</p>
   {#include ShowPages/showFields form=form errors=errors models=models voices=voices action=formAction submit="Save" /}
+  <div class="flex flex-col gap-2 border-t border-line pt-4">
+    <h3 class="m-0 text-sm font-semibold">Feed URL</h3>
+    <p class="m-0 text-sm text-muted">The token in the URL is the only protection of the feed and its audio. Treat it as a password.</p>
+    <code class="mono break-all rounded-lg bg-ground px-3 py-2 text-xs">{show.feedPath}</code>
+    <form method="post" action="/admin/shows/{show.id}/feed-token" onsubmit="return confirm('Generate a new feed URL? Existing subscribers will have to resubscribe.')">
+      <button type="submit" class="btn btn-secondary">Regenerate feed URL</button>
+    </form>
+  </div>
   <form method="post" action="/admin/shows/{show.id}/delete" onsubmit="return confirm('Delete this show, its sources and episodes?')" class="border-t border-line pt-4">
     <button type="submit" class="btn btn-secondary">Delete show</button>
   </form>

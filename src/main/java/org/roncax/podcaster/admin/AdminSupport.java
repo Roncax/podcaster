@@ -57,10 +57,10 @@ public class AdminSupport {
                 "showId = ?1 and usedInEpisodeId is null and coalesce(publishedAt, fetchedAt) >= ?2", s.id, Instant.now().minus(Duration.ofHours(24))));
         long episodes = QuarkusTransaction.requiringNew().call(() -> Episode.count("showId = ?1 and publishedAt is not null", s.id));
         String meta = s.language + " · " + s.voiceId + " · " + s.writerModel + " · " + s.targetDurationMinutes + " min";
-        return new ShowCard(s.id, s.name, s.slug, meta,
+        return new ShowCard(s.id, s.name, s.feedPath(), meta,
                 last.map(r -> "Last run: " + label(r.status).toLowerCase()).orElse("No runs yet"),
                 last.map(r -> tone(r.status)).orElse("neutral"),
-                latest.map(e -> episodeLink(e, s.name)).orElse(null),
+                latest.map(e -> episodeLink(e, s)).orElse(null),
                 !s.enabled ? "Disabled" : scheduler.nextRun(s.id).map(AdminSupport::when).orElse(cronText(s.cron)),
                 fresh, episodes);
     }
@@ -70,10 +70,15 @@ public class AdminSupport {
                 "showId = ?1 and publishedAt is not null and audioPath is not null order by publishedAt desc", showId).firstResultOptional());
     }
 
-    public EpisodeLink episodeLink(Episode e, String showName) {
-        return new EpisodeLink(e.id, e.title == null ? "Untitled episode" : e.title, e.showId, showName,
+    public EpisodeLink episodeLink(Episode e, Show show) {
+        return new EpisodeLink(e.id, e.title == null ? "Untitled episode" : e.title, e.showId, show == null ? "Deleted show" : show.name,
                 day(e.publishedAt != null ? e.publishedAt : e.createdAt), duration(e.durationSeconds),
-                e.audioPath == null ? null : "/media/" + e.audioPath);
+                audioUrl(e, show));
+    }
+
+    /** Admin players use the same token-protected media URL as the feed. */
+    public static String audioUrl(Episode e, Show show) {
+        return e.audioPath == null || show == null ? null : show.mediaPath(e.audioPath);
     }
 
     public RunRow runRow(Run r, String showName) {

@@ -70,7 +70,7 @@ class RunPipelineTest {
         assertEquals("pipe/" + episode.id + ".mp3", episode.audioPath);
         long unused = QuarkusTransaction.requiringNew().call(() -> Item.count("showId = ?1 and usedInEpisodeId is null", show.id));
         assertEquals(0, unused);
-        String feed = given().get("/feeds/pipe.xml").then().statusCode(200).extract().asString();
+        String feed = given().get(show.feedPath()).then().statusCode(200).extract().asString();
         assertTrue(feed.contains("Test episode"));
         int calibrationSamples = QuarkusTransaction.requiringNew().call(() ->
                 VoiceCalibration.<VoiceCalibration>find("voiceId", show.voiceId).firstResult().samples);

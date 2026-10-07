@@ -34,12 +34,12 @@ public class EpisodePages {
     @GET
     public TemplateInstance list(@RestQuery Long show) {
         List<Show> shows = QuarkusTransaction.requiringNew().call(() -> Show.<Show>listAll(Sort.by("name")));
-        Map<Long, String> names = new HashMap<>();
-        shows.forEach(s -> names.put(s.id, s.name));
+        Map<Long, Show> byId = new HashMap<>();
+        shows.forEach(s -> byId.put(s.id, s));
         List<Episode> episodes = QuarkusTransaction.requiringNew().call(() -> show == null
                 ? Episode.<Episode>find("publishedAt is not null order by publishedAt desc").page(0, 100).list()
                 : Episode.<Episode>find("showId = ?1 and publishedAt is not null order by publishedAt desc", show).page(0, 100).list());
-        return Templates.list(episodes.stream().map(e -> support.episodeLink(e, names.getOrDefault(e.showId, "?"))).toList(), shows, show);
+        return Templates.list(episodes.stream().map(e -> support.episodeLink(e, byId.get(e.showId))).toList(), shows, show);
     }
 
     @GET
@@ -57,7 +57,7 @@ public class EpisodePages {
         String size = e.sizeBytes == null ? "—" : String.format(Locale.ROOT, "%.1f MB", e.sizeBytes / 1_000_000.0);
         EpisodeView view = new EpisodeView(e.id, e.title == null ? "Untitled episode" : e.title, e.showId,
                 show == null ? "Deleted show" : show.name, AdminSupport.day(e.publishedAt), AdminSupport.duration(e.durationSeconds), size,
-                e.runId, e.audioPath == null ? null : "/media/" + e.audioPath, support.chapters(e), madeWith,
+                e.runId, AdminSupport.audioUrl(e, show), support.chapters(e), madeWith,
                 e.scriptParts == null ? List.of() : e.scriptParts, e.description);
         return Templates.detail(view);
     }

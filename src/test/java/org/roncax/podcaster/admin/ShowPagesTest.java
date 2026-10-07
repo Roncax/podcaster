@@ -45,8 +45,22 @@ class ShowPagesTest {
 
     @Test
     void listsShowsWithFeedLinks() {
-        TestData.show("listed");
-        admin().get("/admin/shows").then().statusCode(200).body(containsString("Show listed")).body(containsString("/feeds/listed.xml"));
+        Show show = TestData.show("listed");
+        admin().get("/admin/shows").then().statusCode(200).body(containsString("Show listed"))
+                .body(containsString("/feeds/" + show.feedToken + "/listed.xml"));
+    }
+
+    @Test
+    void regeneratesFeedTokenFromSettingsTab() {
+        Show show = TestData.show("rotated");
+        admin().get("/admin/shows/" + show.id + "?tab=settings").then().statusCode(200)
+                .body(containsString("/admin/shows/" + show.id + "/feed-token")).body(containsString(show.feedPath()));
+        admin().post("/admin/shows/" + show.id + "/feed-token").then().statusCode(303)
+                .header("Location", endsWith("/admin/shows/" + show.id + "?tab=settings"));
+        String token = QuarkusTransaction.requiringNew().call(() -> Show.<Show>findById(show.id).feedToken);
+        assertNotEquals(show.feedToken, token);
+        given().get(show.feedPath()).then().statusCode(404);
+        given().get("/feeds/" + token + "/rotated.xml").then().statusCode(200);
     }
 
     @Test

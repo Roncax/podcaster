@@ -112,6 +112,13 @@ public class ShowPages {
     }
 
     @POST
+    @Path("/shows/{id}/feed-token")
+    public Response regenerateFeedToken(@RestPath long id) {
+        shows.regenerateFeedToken(id);
+        return Response.seeOther(URI.create("/admin/shows/" + id + "?tab=settings")).build();
+    }
+
+    @POST
     @Path("/shows/{id}/sources")
     public Response addSource(@RestPath long id, @RestForm String connectorType, @RestForm String url,
                               @RestForm String subreddit, @RestForm String window, @RestForm String maxPosts,
@@ -201,7 +208,7 @@ public class ShowPages {
                 "Target " + show.targetDurationMinutes + " min", AdminSupport.cronText(show.cron));
         List<Episode> eps = QuarkusTransaction.requiringNew().call(() ->
                 Episode.<Episode>find("showId = ?1 and publishedAt is not null order by publishedAt desc", show.id).list());
-        List<EpisodeLink> episodes = eps.stream().map(e -> support.episodeLink(e, show.name)).toList();
+        List<EpisodeLink> episodes = eps.stream().map(e -> support.episodeLink(e, show)).toList();
         List<RunRow> runs = QuarkusTransaction.requiringNew().call(() ->
                 Run.<Run>find("showId = ?1 order by startedAt desc", show.id).page(0, 10).list()).stream()
                 .map(r -> support.runRow(r, show.name)).toList();

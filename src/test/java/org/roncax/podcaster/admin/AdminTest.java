@@ -66,7 +66,7 @@ class AdminTest {
         admin().get("/admin").then().statusCode(200)
                 .body(containsString("Show dash"))
                 .body(containsString("Episodio di prova"))
-                .body(containsString("/media/dash/1.mp3"))
+                .body(containsString("/media/" + show.feedToken + "/dash/1.mp3"))
                 .body(containsString("4:05"))
                 .body(containsString("Source failing"))
                 .body(containsString("HTTP 404 from http://feed/x"))

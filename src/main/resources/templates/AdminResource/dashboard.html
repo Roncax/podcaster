@@ -39,7 +39,7 @@
     <div class="flex flex-wrap gap-2.5">
       <form method="post" action="/admin/shows/{s.id}/run"><button type="submit" class="btn btn-primary">Run now</button></form>
       <a href="/admin/shows/{s.id}" class="btn btn-secondary">Open show</a>
-      <a href="/feeds/{s.slug}.xml" class="btn btn-secondary">Feed</a>
+      <a href="{s.feedPath}" class="btn btn-secondary">Feed</a>
     </div>
   </article>
   {/for}

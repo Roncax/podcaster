@@ -9,7 +9,7 @@ public final class AdminViews {
     public record StageDot(String name, String state) {}
     public record Step(String name, String detail, String state) {}
     public record EpisodeLink(long id, String title, long showId, String showName, String date, String duration, String audioUrl) {}
-    public record ShowCard(long id, String name, String slug, String meta, String lastRunLabel, String lastRunTone,
+    public record ShowCard(long id, String name, String feedPath, String meta, String lastRunLabel, String lastRunTone,
                            EpisodeLink latest, String nextRun, long freshItems, long episodes) {}
     public record RunRow(long id, long showId, String showName, List<StageDot> stages, String status, String tone, String when, String error) {}
     public record Attention(String title, String detail, String tone, String href) {}
