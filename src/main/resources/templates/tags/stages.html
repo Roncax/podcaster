@@ -1,0 +1,1 @@
+<span class="flex gap-1" role="img" aria-label="{label ?: 'Run stages'}">{#for s in stages}<span title="{s.name}" class="h-1.5 w-5 rounded-full {#when s.state}{#is 'done'}bg-ok-dot{#is 'run'}bg-run-dot{#is 'fail'}bg-fail-dot{#is 'skip'}bg-slate-400{#else}bg-slate-200{/when}"></span>{/for}</span>

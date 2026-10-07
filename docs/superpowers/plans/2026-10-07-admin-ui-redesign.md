@@ -364,7 +364,8 @@ and put at the top of `app.css` (after nothing, before `@import "tailwindcss";`)
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} · Podcaster</title>
 {#bundle /}
-{#if islands ?: ''}{#if islands.contains('player')}{#bundle key="player" /}{/if}{#if islands.contains('editor')}{#bundle key="editor" /}{/if}{/if}
+{#if player??}{#bundle key="player" /}{/if}
+{#if editor??}{#bundle key="editor" /}{/if}
 </head>
 <body class="bg-ground text-ink font-sans antialiased">
 <div class="min-h-screen flex flex-wrap">
@@ -2323,7 +2324,7 @@ Remove `episodePage` and the `episode(...)` template declaration from `AdminReso
 `templates/EpisodePages/detail.html`:
 
 ```html
-{#layout title=episode.title active="episodes" islands="player"}
+{#layout title=episode.title active="episodes" player=true}
 <nav aria-label="Breadcrumb" class="text-[13px] text-muted"><a href="/admin/shows/{episode.showId}" class="link">{episode.showName}</a> / <a href="/admin/episodes?show={episode.showId}" class="link">Episodes</a> / {episode.date}</nav>
 
 <section aria-label="Player" class="flex flex-col gap-5 rounded-2xl bg-ink p-6 text-white md:p-7">
@@ -2558,7 +2559,7 @@ Remove from `AdminResource` everything prompt-related (`promptsPage`, `promptPag
 `templates/PromptPages/detail.html`:
 
 ```html
-{#layout title=key active="prompts" islands="editor"}
+{#layout title=key active="prompts" editor=true}
 <nav aria-label="Breadcrumb" class="text-[13px] text-muted"><a href="/admin/prompts" class="link">Prompts</a> / {key}</nav>
 <header class="flex flex-wrap items-center gap-3">
   <div class="flex flex-col gap-1">

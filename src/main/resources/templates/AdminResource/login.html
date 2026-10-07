@@ -1,13 +1,10 @@
-{#include base}
-{#title}Log in · Podcaster{/title}
-{#body}
-<article>
-  <h1>Podcaster</h1>
-  {#if error}<p role="alert">{error}</p>{/if}
-  <form method="post" action="/admin/login">
-    <label>API key <input type="password" name="key" required autofocus></label>
-    <button type="submit">Log in</button>
+{#layout title="Log in" active=""}
+<div class="mx-auto mt-16 w-full max-w-sm card">
+  <h1 class="m-0 text-2xl font-bold">Podcaster</h1>
+  {#if error}<p role="alert" class="m-0 rounded-lg bg-fail-bg px-3 py-2 text-sm text-fail">{error}</p>{/if}
+  <form method="post" action="/admin/login" class="flex flex-col gap-4">
+    <label class="field"><span class="field-label">API key</span><input class="field-input" type="password" name="key" required autofocus></label>
+    <button type="submit" class="btn btn-primary">Log in</button>
   </form>
-</article>
-{/body}
-{/include}
+</div>
+{/layout}

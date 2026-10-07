@@ -1,0 +1,12 @@
+<ol class="grid grid-cols-5 gap-2" role="list">
+{#for s in steps}
+  <li class="flex flex-col gap-2">
+    <span class="h-1.5 rounded-full {#when s.state}{#is 'done'}bg-ok-dot{#is 'run'}bg-run-dot{#is 'fail'}bg-fail-dot{#is 'skip'}bg-slate-400{#else}bg-slate-200{/when}" aria-hidden="true"></span>
+    <span class="flex items-center gap-2">
+      <span class="flex size-6 flex-none items-center justify-center rounded-full text-xs font-bold {#when s.state}{#is 'done'}bg-ok-bg text-ok{#is 'run'}bg-run-bg text-run{#is 'fail'}bg-fail-bg text-fail{#else}bg-slate-100 text-muted{/when}" aria-hidden="true">{#when s.state}{#is 'done'}✓{#is 'run'}…{#is 'fail'}!{#else}{/when}</span>
+      <span class="flex flex-col"><span class="text-sm font-semibold">{s.name}</span><span class="text-xs text-muted">{s.detail}</span></span>
+    </span>
+  </li>
+{/for}
+</ol>
+{#if progress}<p class="m-0 rounded-lg bg-ground px-3 py-2.5 font-mono text-xs text-[#3D4957]">{progress}</p>{/if}

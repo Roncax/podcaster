@@ -54,6 +54,10 @@ quarkus:
         global: ignore   # JSON columns use Hibernate's own Jackson mapper, not the REST one
   flyway:
     migrate-at-start: true
+  web-bundler:
+    bundle:
+      player: true
+      editor: true
   scheduler:
     cron-type: unix
     start-mode: forced
