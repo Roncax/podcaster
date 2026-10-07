@@ -71,3 +71,6 @@ nb-configuration.xml
 
 # local secrets
 .env
+
+# Synology deployment data
+deploy/synology/data/
