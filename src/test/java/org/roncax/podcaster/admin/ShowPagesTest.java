@@ -157,4 +157,17 @@ class ShowPagesTest {
         assertTrue(html.contains("data-connector=\"rss\""), html);
         assertTrue(html.contains("data-connector=\"reddit\""), html);
     }
+
+    @Test
+    void settingsKeepsAWriterModelThatIsNotEnabled() {
+        Show show = TestData.show("oldmodel");
+        QuarkusTransaction.requiringNew().run(() -> {
+            Show s = Show.findById(show.id);
+            s.writerModel = "gpt";
+            s.rankerModel = "claude";
+        });
+        String html = admin().get("/admin/shows/" + show.id + "?tab=settings").then().statusCode(200).extract().asString();
+        assertTrue(html.contains("<option value=\"gpt\" selected>gpt (not enabled)</option>"), html);
+        assertTrue(html.contains("<option value=\"claude\" selected>claude (not enabled)</option>"), html);
+    }
 }
