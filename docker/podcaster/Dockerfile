@@ -1,4 +1,4 @@
-FROM maven:3.9-eclipse-temurin-25 AS build
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /build
 COPY pom.xml ./
 RUN mvn -B -q dependency:go-offline || true

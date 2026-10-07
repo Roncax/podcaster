@@ -1,23 +1,22 @@
+# Synology Container Manager stack: create a Project with this folder as its path.
+# Pulls the images published to GHCR by .github/workflows/images.yml.
+# Reads .env from this folder; data lives in ./data so Hyper Backup can reach it.
 services:
   podcaster:
-    build:
-      context: .
-      dockerfile: docker/podcaster/Dockerfile
+    image: ghcr.io/roncax/podcaster:${IMAGE_TAG:-latest}
     env_file: .env
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/podcaster
-      PIPER_URL: http://piper:5000
-      TZ: ${TZ:-Europe/Rome}   # cron schedules and episode dates use this zone
+      PIPER_URL: ${PIPER_URL:-http://piper:5000}   # point at another host (e.g. a Raspberry Pi) if Piper can't run here
+      TZ: ${TZ:-Europe/Rome}
     ports:
       - "${PODCASTER_PORT:-8080}:8080"
     volumes:
-      - audio:/data/audio
-      - work:/data/work
+      - ./data/audio:/data/audio   # must be owned by uid 185
+      - ./data/work:/data/work     # must be owned by uid 185
     depends_on:
       postgres:
         condition: service_healthy
-      piper:
-        condition: service_started
     restart: unless-stopped
 
   postgres:
@@ -27,42 +26,18 @@ services:
       POSTGRES_USER: ${DB_USER:-podcaster}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-podcaster}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./data/pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-podcaster} -d podcaster"]
       interval: 5s
       retries: 20
     restart: unless-stopped
 
-  adminer:
-    image: adminer
-    environment:
-      ADMINER_DEFAULT_SERVER: postgres
-    ports:
-      - "${ADMINER_PORT:-8082}:8080"
-    depends_on:
-      - postgres
-    restart: unless-stopped
-
   piper:
-    build: docker/piper
+    image: ghcr.io/roncax/podcaster-piper:${IMAGE_TAG:-latest}
     environment:
       PIPER_DEFAULT_VOICE: ${PIPER_DEFAULT_VOICE:-it_IT-paola-medium}
       PIPER_EXTRA_VOICES: ${PIPER_EXTRA_VOICES:-}
     volumes:
-      - voices:/voices
+      - ./data/voices:/voices
     restart: unless-stopped
-
-  ollama:
-    image: ollama/ollama
-    profiles: ["ollama"]
-    volumes:
-      - ollama:/root/.ollama
-    restart: unless-stopped
-
-volumes:
-  audio: {}
-  work: {}
-  pgdata: {}
-  voices: {}
-  ollama: {}
