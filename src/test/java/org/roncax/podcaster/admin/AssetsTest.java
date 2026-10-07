@@ -35,4 +35,16 @@ class AssetsTest {
             assertFalse(html.contains(host), "external asset reference: " + host);
         }
     }
+
+    @Test
+    void editorBundleIsCodeMirror6() {
+        String html = given().cookie("podcaster_key", "test-api-key-0123456789").get("/admin/prompts/json_repair")
+                .then().statusCode(200).extract().asString();
+        Matcher m = Pattern.compile("/static/bundle/editor[^\"]*\\.js").matcher(html);
+        assertTrue(m.find(), "prompt page loads the editor bundle");
+        String js = given().get(m.group()).then().statusCode(200).extract().asString();
+        assertFalse(js.contains("CodeMirror-gutters"), "editor bundle must not contain CodeMirror 5 (org.mvnpm:codemirror 6.65.x is a CM5 mis-publish)");
+        assertTrue(js.contains("cm-activeLine"), "editor bundle must contain codemirror 6 basicSetup");
+        assertTrue(js.contains("cm-mergeView"), "editor bundle must contain @codemirror/merge");
+    }
 }

@@ -70,7 +70,7 @@
         <dependency><groupId>io.quarkiverse.web-bundler</groupId><artifactId>quarkus-web-bundler</artifactId><version>${web-bundler.version}</version></dependency>
         <dependency><groupId>io.quarkiverse.web-bundler</groupId><artifactId>quarkus-web-bundler-tailwindcss</artifactId><version>${web-bundler.version}</version></dependency>
         <dependency><groupId>org.mvnpm</groupId><artifactId>htmx.org</artifactId><version>2.0.11</version><scope>provided</scope></dependency>
-        <dependency><groupId>org.mvnpm</groupId><artifactId>codemirror</artifactId><version>6.65.7</version><scope>provided</scope></dependency>
+        <dependency><groupId>org.mvnpm</groupId><artifactId>codemirror</artifactId><version>6.0.2</version><scope>provided</scope></dependency>
         <dependency><groupId>org.mvnpm.at.codemirror</groupId><artifactId>merge</artifactId><version>6.12.2</version><scope>provided</scope></dependency>
         <dependency><groupId>org.mvnpm.at.codemirror</groupId><artifactId>view</artifactId><version>6.43.13</version><scope>provided</scope></dependency>
         <dependency><groupId>org.mvnpm.at.codemirror</groupId><artifactId>state</artifactId><version>6.7.6</version><scope>provided</scope></dependency>
