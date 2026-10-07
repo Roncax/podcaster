@@ -76,16 +76,16 @@
     <h2 class="m-0 text-base font-semibold">Add source</h2>
     {#if sourceErrors}<div role="alert" class="rounded-xl bg-fail-bg p-3 text-sm text-fail"><ul class="m-0 pl-5">{#for e in sourceErrors}<li>{e}</li>{/for}</ul></div>{/if}
     <label class="field"><span class="field-label">Connector</span>
-      <select class="field-input" name="connectorType">{#for c in connectors}<option value="{c}">{c}</option>{/for}</select></label>
-    <fieldset class="m-0 flex flex-col gap-3 border-0 p-0"><legend class="mb-1 text-[13px] font-semibold">RSS</legend>
+      <select class="field-input" name="connectorType" data-connector-select>{#for c in connectors}<option value="{c}"{#if c == 'rss'} selected{/if}>{c}</option>{/for}</select></label>
+    <fieldset data-connector="rss" class="m-0 flex flex-col gap-3 border-0 p-0"><legend class="mb-1 text-[13px] font-semibold">RSS</legend>
       <label class="field"><span class="field-label">Feed URL</span><input class="field-input mono" name="url" placeholder="https://www.ilpost.it/italia/feed/"></label>
-      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="fetchFullText" checked> Fetch full article text</label>
     </fieldset>
-    <fieldset class="m-0 grid grid-cols-2 gap-3 border-0 p-0"><legend class="mb-1 text-[13px] font-semibold">Reddit</legend>
+    <fieldset data-connector="reddit" class="m-0 grid grid-cols-2 gap-3 border-0 p-0"><legend class="mb-1 text-[13px] font-semibold">Reddit</legend>
       <label class="field col-span-2"><span class="field-label">Subreddit</span><input class="field-input" name="subreddit" placeholder="italy"></label>
       <label class="field"><span class="field-label">Window</span><select class="field-input" name="window"><option value="day">Last day</option><option value="week">Last week</option><option value="hour">Last hour</option><option value="month">Last month</option></select></label>
       <label class="field"><span class="field-label">Top posts</span><input class="field-input mono" name="maxPosts" value="10"></label>
     </fieldset>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="fetchFullText" checked> Fetch full article text</label>
     <details><summary class="cursor-pointer text-[13px] font-medium">Advanced: extra config (key=value per line)</summary>
       <textarea class="field-input mt-2 w-full" name="config" rows="3"></textarea></details>
     <button type="submit" class="btn btn-primary">Add to show</button>

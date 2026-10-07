@@ -13,3 +13,16 @@ document.addEventListener("htmx:responseError", (event) => {
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 6000);
 });
+
+// Add-source form: show only the fields of the selected connector (without JS every fieldset stays visible).
+function syncConnectorFields(select) {
+  select.form?.querySelectorAll("fieldset[data-connector]").forEach((fs) => {
+    const active = fs.dataset.connector === select.value;
+    fs.hidden = !active;
+    fs.disabled = !active;
+  });
+}
+document.addEventListener("change", (e) => {
+  if (e.target.matches?.("[data-connector-select]")) syncConnectorFields(e.target);
+});
+document.querySelectorAll("[data-connector-select]").forEach(syncConnectorFields);

@@ -134,4 +134,13 @@ class ShowPagesTest {
         }
         admin().get("/admin/shows/" + show.id + "?tab=prompts").then().statusCode(200).body(containsString("Prompt overrides"));
     }
+
+    @Test
+    void addSourceFormDefaultsToRssAndTagsFieldsetsByConnector() {
+        Show show = TestData.show("srcform");
+        String html = admin().get("/admin/shows/" + show.id + "?tab=sources").then().statusCode(200).extract().asString();
+        assertTrue(html.contains("<option value=\"rss\" selected>"), "RSS is the default connector");
+        assertTrue(html.contains("data-connector=\"rss\""), html);
+        assertTrue(html.contains("data-connector=\"reddit\""), html);
+    }
 }
