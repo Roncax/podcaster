@@ -1,0 +1,18 @@
+{#layout title="Settings" active="settings"}
+<h1 class="m-0 text-3xl font-bold">Settings</h1>
+<p class="m-0 text-sm text-muted">Read-only. Change these in <code class="mono">.env</code> and restart the stack.</p>
+<div class="grid gap-5 md:grid-cols-2">
+  <section class="card"><h2 class="m-0 text-base font-semibold">LLM model slots (enabled)</h2>
+    <ul class="m-0 flex flex-wrap gap-2 p-0" role="list">{#for m in models}<li class="chip mono">{m}</li>{#else}<li class="text-sm text-muted">None enabled</li>{/for}</ul></section>
+  <section class="card"><h2 class="m-0 text-base font-semibold">Piper voices</h2>
+    <ul class="m-0 flex flex-wrap gap-2 p-0" role="list">{#for v in voices}<li class="chip mono">{v}</li>{#else}<li class="text-sm text-muted">Piper unreachable</li>{/for}</ul></section>
+  <section class="card"><h2 class="m-0 text-base font-semibold">Source connectors</h2>
+    <ul class="m-0 flex flex-wrap gap-2 p-0" role="list">{#for c in connectors}<li class="chip mono">{c}</li>{/for}</ul></section>
+  <section class="card"><h2 class="m-0 text-base font-semibold">System</h2>
+    <dl class="m-0 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+      <dt class="text-muted">Telegram alerts</dt><dd class="m-0">{#if telegram}Enabled{#else}Disabled{/if}</dd>
+      <dt class="text-muted">Base URL</dt><dd class="m-0 mono">{baseUrl}</dd>
+      <dt class="text-muted">Version</dt><dd class="m-0 mono">{version}</dd>
+    </dl></section>
+</div>
+{/layout}

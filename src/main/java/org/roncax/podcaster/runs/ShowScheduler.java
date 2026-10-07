@@ -42,6 +42,14 @@ public class ShowScheduler {
         scheduler.unscheduleJob(PREFIX + showId);
     }
 
+    public java.util.Optional<java.time.Instant> nextRun(long showId) {
+        return scheduler.getScheduledJobs().stream()
+                .filter(t -> t.getId().equals(PREFIX + showId))
+                .map(Trigger::getNextFireTime)
+                .filter(java.util.Objects::nonNull)
+                .findFirst();
+    }
+
     public Set<String> scheduledJobIds() {
         return scheduler.getScheduledJobs().stream()
                 .map(Trigger::getId)
