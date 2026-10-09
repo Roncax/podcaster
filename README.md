@@ -98,6 +98,8 @@ The `caddy` service (published on `PUBLIC_PORT`, default 8091) forwards only `/f
 4. On the router, forward TCP 443 to the NAS (and 80 if the certificate renews via HTTP challenge).
 5. Set `PODCASTER_BASE_URL=https://<name>.synology.me` in `.env` and restart, so feed links point to the public URL.
 
+On a slow CPU (e.g. a Celeron NAS) `-high` voices synthesize about 3× slower than real time, so one 500-character chunk can exceed Piper's default 2-minute request limit. Raise it and synthesize one chunk at a time in `.env`: `PODCASTER_TTS_REQUEST_TIMEOUT=5m` and `PODCASTER_TTS_PARALLELISM=1` (or use a `-medium` voice, ~7× faster).
+
 If the `piper` container dies with `Illegal instruction` (the NAS CPU lacks AVX), run the same image on a Raspberry Pi: `docker run -d -p 5000:5000 -v voices:/voices --restart unless-stopped ghcr.io/roncax/podcaster-piper`, and set `PIPER_URL=http://<pi-ip>:5000` in `.env`.
 
 ## API

@@ -25,16 +25,22 @@ public class PiperHttpTtsEngine implements TtsEngine {
     private final String baseUrl;
     private final int attempts;
     private final Duration retryDelay;
+    private final Duration requestTimeout;
 
     @Inject
     public PiperHttpTtsEngine(PodcasterConfig config) {
-        this(config.tts().piperUrl(), config.tts().attempts(), config.tts().retryDelay());
+        this(config.tts().piperUrl(), config.tts().attempts(), config.tts().retryDelay(), config.tts().requestTimeout());
     }
 
     public PiperHttpTtsEngine(String baseUrl, int attempts, Duration retryDelay) {
+        this(baseUrl, attempts, retryDelay, Duration.ofMinutes(2));
+    }
+
+    public PiperHttpTtsEngine(String baseUrl, int attempts, Duration retryDelay, Duration requestTimeout) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.attempts = attempts;
         this.retryDelay = retryDelay;
+        this.requestTimeout = requestTimeout;
     }
 
     @Override
@@ -42,7 +48,7 @@ public class PiperHttpTtsEngine implements TtsEngine {
         String body = MAPPER.writeValueAsString(Map.of(
                 "text", text, "voice", voice.voiceId(), "length_scale", voice.lengthScale()));
         HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/synthesize"))
-                .timeout(Duration.ofMinutes(2))
+                .timeout(requestTimeout)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();

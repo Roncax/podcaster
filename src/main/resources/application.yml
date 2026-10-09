@@ -30,6 +30,7 @@ podcaster:
     bitrate: 64k
     attempts: 3
     retry-delay: 2s
+    request-timeout: 2m   # per /synthesize call; PODCASTER_TTS_REQUEST_TIMEOUT=5m on slow CPUs
   runs:
     workers: 2
   telegram:
