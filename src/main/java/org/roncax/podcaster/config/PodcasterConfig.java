@@ -48,6 +48,8 @@ public interface PodcasterConfig {
         String bitrate();
         int attempts();
         Duration retryDelay();
+        /** How long one /synthesize call may take; raise it for slow CPUs or heavy (-high) voices. */
+        Duration requestTimeout();
     }
 
     interface Runs { int workers(); }

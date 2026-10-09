@@ -65,4 +65,17 @@ class PiperHttpTtsEngineTest {
         wm.stubFor(get("/voices").willReturn(okJson("{\"it_IT-paola-medium\":{\"x\":1},\"en_US-lessac-medium\":{}}")));
         assertEquals(Set.of("it_IT-paola-medium", "en_US-lessac-medium"), engine.voices());
     }
+
+    @Test
+    void requestTimeoutIsConfigurable() throws Exception {
+        wm.stubFor(post("/synthesize").willReturn(aResponse().withStatus(200).withBody(TestAudio.sineWav(0.1)).withFixedDelay(1500)));
+
+        PiperHttpTtsEngine impatient = new PiperHttpTtsEngine(wm.baseUrl(), 2, Duration.ofMillis(5), Duration.ofMillis(300));
+        Exception ex = assertThrows(Exception.class, () -> impatient.synthesize("x", new VoiceConfig("v", 1.0)));
+        assertTrue(ex.getMessage().contains("timed out"), ex.getMessage());
+        wm.verify(2, postRequestedFor(urlEqualTo("/synthesize")));
+
+        PiperHttpTtsEngine patient = new PiperHttpTtsEngine(wm.baseUrl(), 1, Duration.ofMillis(5), Duration.ofSeconds(5));
+        assertTrue(Wav.looksLikeWav(patient.synthesize("x", new VoiceConfig("v", 1.0))));
+    }
 }
