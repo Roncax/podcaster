@@ -9,7 +9,7 @@ Self-hosted service that turns news sources into a daily ~20-minute podcast epis
 1. `cp .env.example .env` and set `PODCASTER_API_KEY`, `PODCASTER_BASE_URL`, the DB password, and enable at least one LLM slot.
 2. `docker compose up -d --build` (add `--profile ollama` for a local Ollama).
 3. Open `http://<server>:8080/admin`, log in with the API key, create a Show, add sources, press **Run now**.
-4. Subscribe to the feed URL shown on the show page, `http://<server>:8080/feeds/<token>/<slug>.xml`, in your podcast app (AntennaPod, Pocket Casts, …). The random per-show token is the only protection of the feed and its audio: treat the URL as a password, and use **Regenerate feed URL** in the show's Settings tab if it leaks (subscribers must resubscribe). Never expose `/admin`, `/api` or `/q` to the internet.
+4. Subscribe to the feed URL shown on the show page, `http://<server>:8080/feeds/<token>/<slug>.xml`, in your podcast app (AntennaPod, Pocket Casts, …). The random per-show token is the only protection of the feed and its audio: treat the URL as a password, and use **Regenerate feed URL** in the show's Settings tab if it leaks (subscribers must resubscribe). Never expose `/admin`, `/api` or `/q` to the internet. Episodes carry Podcasting 2.0 chapters (`podcast:chapters`, one JSON file per episode under the same token path), each story chapter linking to its source article: AntennaPod and Apple Podcasts show them.
 
 Example sources: ANSA `https://www.ansa.it/sito/ansait_rss.xml`, Il Post sections `https://www.ilpost.it/italia/feed/`, `https://www.ilpost.it/mondo/feed/`.
 

@@ -14,6 +14,7 @@ import org.roncax.podcaster.domain.Show;
 @ApplicationScoped
 public class PodcastFeedRenderer {
     private static final String ITUNES = "http://www.itunes.com/dtds/podcast-1.0.dtd";
+    private static final String PODCAST = "https://podcastindex.org/namespace/1.0";
 
     public String render(Show show, List<Episode> episodes, String baseUrl) {
         String base = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
@@ -23,6 +24,7 @@ public class PodcastFeedRenderer {
             w.writeStartDocument("UTF-8", "1.0");
             w.writeStartElement("rss");
             w.writeNamespace("itunes", ITUNES);
+            w.writeNamespace("podcast", PODCAST);
             w.writeAttribute("version", "2.0");
             w.writeStartElement("channel");
             element(w, "title", show.name);
@@ -46,6 +48,11 @@ public class PodcastFeedRenderer {
                 w.writeAttribute("length", String.valueOf(e.sizeBytes == null ? 0 : e.sizeBytes));
                 w.writeAttribute("type", "audio/mpeg");
                 itunes(w, "duration", String.valueOf(Math.round(e.durationSeconds == null ? 0 : e.durationSeconds)));
+                if (ChaptersJson.available(e)) {
+                    w.writeEmptyElement("podcast", "chapters", PODCAST);
+                    w.writeAttribute("url", base + "/feeds/" + show.feedToken + "/" + show.slug + "/chapters/" + e.id + ".json");
+                    w.writeAttribute("type", ChaptersJson.MEDIA_TYPE);
+                }
                 w.writeEndElement();
             }
             w.writeEndElement();
