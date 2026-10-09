@@ -14,6 +14,16 @@ public final class UrlGuard {
         return scheme.equals("http") || scheme.equals("https");
     }
 
+    /** String form of {@link #isHttp(URI)}: false for null, blank or unparsable values. */
+    public static boolean isHttp(String url) {
+        if (url == null || url.isBlank()) return false;
+        try {
+            return isHttp(URI.create(url.trim()));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     /** True only for http(s) URLs whose host resolves exclusively to public addresses. */
     public static boolean isPublicHttp(URI uri) {
         if (!isHttp(uri)) return false;

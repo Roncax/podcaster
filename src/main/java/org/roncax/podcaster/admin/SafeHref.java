@@ -1,7 +1,6 @@
 package org.roncax.podcaster.admin;
 
 import io.quarkus.qute.TemplateExtension;
-import java.net.URI;
 import org.roncax.podcaster.http.UrlGuard;
 
 /** {@code {url.safeHref}}: the URL when it is http(s), otherwise null. Feed links must never become javascript: hrefs. */
@@ -14,11 +13,6 @@ public class SafeHref {
     }
 
     public static boolean isHttp(String url) {
-        if (url == null || url.isBlank()) return false;
-        try {
-            return UrlGuard.isHttp(URI.create(url.trim()));
-        } catch (IllegalArgumentException e) {
-            return false;
-        }
+        return UrlGuard.isHttp(url);
     }
 }
