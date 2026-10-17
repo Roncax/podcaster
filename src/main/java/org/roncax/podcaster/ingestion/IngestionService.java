@@ -91,22 +91,28 @@ public class IngestionService {
                 .call(() -> Item.count("showId = ?1 and url = ?2", showId, url) > 0);
     }
 
-    private boolean save(long showId, long sourceId, CollectedItem collected) {
+    /** Builds the (unpersisted) Item for a collected item; shared by ingestion and the test-tab dry run. */
+    public static Item toItem(long showId, long sourceId, CollectedItem collected) {
         RawItem raw = collected.raw();
+        Item item = new Item();
+        item.showId = showId;
+        item.sourceId = sourceId;
+        item.url = raw.url();
+        item.contentHash = collected.contentHash();
+        item.title = raw.title().length() > MAX_TITLE ? raw.title().substring(0, MAX_TITLE) : raw.title();
+        item.author = raw.author();
+        item.publishedAt = raw.publishedAt();
+        item.fetchedAt = Instant.now();
+        item.summary = raw.summary();
+        item.fullText = collected.fullText();
+        item.discussionUrl = org.roncax.podcaster.admin.SafeHref.isHttp(raw.discussionUrl()) ? raw.discussionUrl() : null;
+        return item;
+    }
+
+    private boolean save(long showId, long sourceId, CollectedItem collected) {
         return QuarkusTransaction.requiringNew().call(() -> {
             if (Item.count("showId = ?1 and contentHash = ?2", showId, collected.contentHash()) > 0) return false;
-            Item item = new Item();
-            item.showId = showId;
-            item.sourceId = sourceId;
-            item.url = raw.url();
-            item.contentHash = collected.contentHash();
-            item.title = raw.title().length() > MAX_TITLE ? raw.title().substring(0, MAX_TITLE) : raw.title();
-            item.author = raw.author();
-            item.publishedAt = raw.publishedAt();
-            item.fetchedAt = Instant.now();
-            item.summary = raw.summary();
-            item.fullText = collected.fullText();
-            item.discussionUrl = org.roncax.podcaster.admin.SafeHref.isHttp(raw.discussionUrl()) ? raw.discussionUrl() : null;
+            Item item = toItem(showId, sourceId, collected);
             item.persist();
             return true;
         });

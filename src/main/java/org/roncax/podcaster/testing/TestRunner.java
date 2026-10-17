@@ -34,6 +34,7 @@ public class TestRunner {
     public void start(long showId, TestSession.Step step, Work work) {
         TestSession session = store.session(showId);
         if (!session.begin(step)) throw new TestStepBusyException(showId);
+        try {
         executor.submit(() -> {
             try {
                 work.run(session);
@@ -43,5 +44,9 @@ public class TestRunner {
                 session.finish(step, Exceptions.message(t));
             }
         });
+        } catch (RuntimeException e) {
+            session.finish(step, Exceptions.message(e));
+            throw e;
+        }
     }
 }

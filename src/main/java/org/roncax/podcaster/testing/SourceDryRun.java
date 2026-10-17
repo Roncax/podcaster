@@ -31,7 +31,7 @@ public class SourceDryRun {
                 int kept = 0;
                 for (CollectedItem c : ingestion.collect(source, since, url -> false)) {
                     if (!urls.add(c.raw().url()) || !hashes.add(c.contentHash())) continue;
-                    items.add(toItem(showId, source.id, c));
+                    items.add(IngestionService.toItem(showId, source.id, c));
                     kept++;
                 }
                 results.add(new TestSession.SourceResult(source.id, source.label(), kept, null));
@@ -43,21 +43,5 @@ public class SourceDryRun {
         List<Item> capped = new ArrayList<>(items.subList(0, Math.min(items.size(), config.selection().maxCandidates())));
         for (int i = 0; i < capped.size(); i++) capped.get(i).id = (long) (i + 1); // shown to the LLM as [id=N]
         return new TestSession.Fetched(results, capped);
-    }
-
-    private static Item toItem(long showId, long sourceId, CollectedItem c) {
-        Item item = new Item();
-        item.showId = showId;
-        item.sourceId = sourceId;
-        item.url = c.raw().url();
-        item.contentHash = c.contentHash();
-        String title = c.raw().title();
-        item.title = title.length() > IngestionService.MAX_TITLE ? title.substring(0, IngestionService.MAX_TITLE) : title;
-        item.author = c.raw().author();
-        item.publishedAt = c.raw().publishedAt();
-        item.fetchedAt = Instant.now();
-        item.summary = c.raw().summary();
-        item.fullText = c.fullText();
-        return item;
     }
 }
