@@ -1,58 +1,53 @@
-{#layout title=key active="prompts" editor=true}
-<nav aria-label="Breadcrumb" class="text-[13px] text-muted"><a href="/admin/prompts" class="link">Prompts</a> / {key}</nav>
+{#layout title=page.key active=page.activeNav editor=true}
+<nav aria-label="Breadcrumb" class="text-[13px] text-muted">{#for c in page.crumbs}<a href="{c.href}" class="link">{c.label}</a> / {/for}{page.key}</nav>
 <header class="flex flex-wrap items-center gap-3">
   <div class="flex flex-col gap-1">
-    <h1 class="mono m-0 text-2xl font-semibold">{key}</h1>
-    <span class="text-sm text-muted">{description} · production v{production} · draft v{draft}</span>
+    <h1 class="mono m-0 text-2xl font-semibold">{page.key}</h1>
+    <span class="text-sm text-muted">{page.description} · {page.summary}</span>
   </div>
 </header>
+{#if page.banner}<p class="m-0 rounded-lg bg-info-bg px-3 py-2 text-sm">{page.banner}</p>{/if}
 
 <section aria-label="Versions" class="flex flex-col gap-3">
   <h2 class="m-0 text-base font-semibold">Versions</h2>
   <ol class="m-0 flex flex-wrap gap-2.5 p-0" role="list">
-    {#for v in versions}
-    <li class="flex min-w-44 flex-col gap-1 rounded-xl bg-panel p-3 ring-1 {#if v.version == shownVersion}ring-2 ring-run-dot{#else}ring-line{/if}">
-      <a href="/admin/prompts/{key}?v={v.version}" class="mono font-semibold text-ink no-underline hover:underline">v{v.version}</a>
+    {#for v in page.versions}
+    <li class="flex min-w-44 flex-col gap-1 rounded-xl bg-panel p-3 ring-1 {#if v.version == page.shownVersion}ring-2 ring-run-dot{#else}ring-line{/if}">
+      <a href="{page.basePath}?v={v.version}" class="mono font-semibold text-ink no-underline hover:underline">v{v.version}</a>
       <span class="text-xs text-muted">{v.note}</span>
       <span class="text-[11px] font-semibold uppercase text-ok">{v.labels}</span>
+      {#if page.labelled}
       <span class="flex flex-wrap gap-1.5">
-        <form method="post" action="/admin/prompts/{key}/labels/production"><input type="hidden" name="version" value="{v.version}"><button type="submit" class="btn btn-secondary btn-sm">Promote</button></form>
-        <form method="post" action="/admin/prompts/{key}/labels/draft"><input type="hidden" name="version" value="{v.version}"><button type="submit" class="btn btn-secondary btn-sm">Set draft</button></form>
+        <form method="post" action="{page.basePath}/labels/production"><input type="hidden" name="version" value="{v.version}"><button type="submit" class="btn btn-secondary btn-sm">Promote</button></form>
+        <form method="post" action="{page.basePath}/labels/draft"><input type="hidden" name="version" value="{v.version}"><button type="submit" class="btn btn-secondary btn-sm">Set draft</button></form>
       </span>
+      {/if}
     </li>
     {/for}
   </ol>
+  {#if page.resetAction}<form method="post" action="{page.resetAction}"><button type="submit" class="btn btn-secondary">Reset to default</button></form>{/if}
+  {#if page.testHref}<a href="{page.testHref}" class="btn btn-secondary">Test this draft</a>{/if}
 </section>
 
 <section class="card p-0 overflow-hidden" aria-label="Changes">
-  <h2 class="m-0 px-5 pt-4 text-base font-semibold">v{shownVersion} compared with production (v{production})</h2>
+  <h2 class="m-0 px-5 pt-4 text-base font-semibold">{page.compareTitle}</h2>
   <div data-prompt-diff class="min-h-24">
-    <template data-side="a">{productionBody}</template>
-    <template data-side="b">{shownBody}</template>
-    <div class="mono overflow-x-auto py-3 text-[12.5px] leading-relaxed">{#for d in diff}<div class="{d.css} whitespace-pre px-5">{d.prefix} {d.text}</div>{/for}</div>
+    <template data-side="a">{page.baseBody}</template>
+    <template data-side="b">{page.shownBody}</template>
+    <div class="mono overflow-x-auto py-3 text-[12.5px] leading-relaxed">{#for d in page.diff}<div class="{d.css} whitespace-pre px-5">{d.prefix} {d.text}</div>{/for}</div>
   </div>
 </section>
 
-<section class="card" aria-label="Dry-run">
-  <h2 class="m-0 text-base font-semibold">Dry-run the draft</h2>
-  <form method="post" action="/admin/prompts/dry-run" hx-post="/admin/prompts/dry-run" hx-target="#dry-run" hx-indicator="#dry-run-busy" class="flex flex-wrap items-end gap-2">
-    <label class="field"><span class="field-label">Show</span><select class="field-input" name="showId">{#for s in shows}<option value="{s.id}">{s.name}</option>{/for}</select></label>
-    <button type="submit" class="btn btn-secondary">Dry-run</button>
-    <span id="dry-run-busy" class="htmx-indicator text-xs text-muted">Running… (about a minute)</span>
-  </form>
-  <div id="dry-run"></div>
-</section>
-
-<form method="post" action="/admin/prompts/{key}/versions" class="card" aria-label="New version">
+<form method="post" action="{page.basePath}/versions" class="card" aria-label="New version">
   <div class="flex flex-wrap items-center gap-2">
     <h2 class="m-0 text-base font-semibold">New version</h2>
     <span class="ml-2 text-xs text-muted">Insert variable:</span>
-    {#for v in variables}<button type="button" data-insert-var="{v}" class="mono h-7 rounded-md bg-ground px-2 text-xs text-info ring-1 ring-line">{v}</button>{/for}
+    {#for v in page.variables}<button type="button" data-insert-var="{v}" class="mono h-7 rounded-md bg-ground px-2 text-xs text-info ring-1 ring-line">{v}</button>{/for}
   </div>
-  {#if errors}<div role="alert" class="rounded-xl bg-fail-bg p-3 text-sm text-fail"><ul class="m-0 pl-5">{#for e in errors}<li>{e}</li>{/for}</ul></div>{/if}
-  <label class="field"><span class="field-label">Template</span><textarea class="field-input" name="body" rows="18" data-prompt-editor>{editorBody}</textarea></label>
+  {#if page.errors}<div role="alert" class="rounded-xl bg-fail-bg p-3 text-sm text-fail"><ul class="m-0 pl-5">{#for e in page.errors}<li>{e}</li>{/for}</ul></div>{/if}
+  <label class="field"><span class="field-label">Template</span><textarea class="field-input" name="body" rows="18" data-prompt-editor>{page.editorBody}</textarea></label>
   <div class="flex flex-wrap items-end gap-2.5">
-    <label class="field grow basis-64"><span class="field-label">Change note</span><input class="field-input" name="note" value="{note ?: ''}"></label>
+    <label class="field grow basis-64"><span class="field-label">Change note</span><input class="field-input" name="note" value="{page.note ?: ''}"></label>
     <button type="submit" class="btn btn-primary">Save as new draft version</button>
   </div>
 </form>

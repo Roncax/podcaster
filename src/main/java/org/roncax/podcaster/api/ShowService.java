@@ -17,6 +17,7 @@ import org.roncax.podcaster.domain.Source;
 import org.roncax.podcaster.extraction.ContentExtractionService;
 import org.roncax.podcaster.ingestion.*;
 import org.roncax.podcaster.llm.ChatModelRegistry;
+import org.roncax.podcaster.prompts.PromptRegistry;
 import org.roncax.podcaster.publishing.AudioStorage;
 import org.roncax.podcaster.runs.CronValidator;
 import org.roncax.podcaster.runs.ShowScheduler;
@@ -35,6 +36,7 @@ public class ShowService {
     @Inject TtsEngine tts;
     @Inject ShowScheduler scheduler;
     @Inject AudioStorage storage;
+    @Inject PromptRegistry prompts;
 
     public Show create(ShowRequest r) {
         throwIfInvalid(validationErrors(r, null));
@@ -42,6 +44,7 @@ public class ShowService {
             Show s = new Show();
             apply(s, r);
             s.persist();
+            prompts.fork(s.id);
             return s;
         });
         scheduler.reschedule(show);

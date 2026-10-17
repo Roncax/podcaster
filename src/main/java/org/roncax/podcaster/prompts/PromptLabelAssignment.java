@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 @Table(name = "prompt_labels")
 public class PromptLabelAssignment extends PanacheEntityBase {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) public Long id;
+    public Long showId;
     public String promptKey;
     public String label;
     public Long versionId;

@@ -41,7 +41,7 @@ class PromptAdminTest {
     @Test
     void promptsPageListsAllPrompts() {
         admin().get("/admin/prompts").then().statusCode(200)
-                .body(containsString("rank")).body(containsString("segment"))
+                .body(containsString("Default prompts")).body(containsString("rank")).body(containsString("segment"))
                 .body(containsString("framing")).body(containsString("json_repair"));
     }
 
@@ -61,22 +61,10 @@ class PromptAdminTest {
     }
 
     @Test
-    void promoteFromForm() {
-        registry.createVersion(PromptKey.JSON_REPAIR, REPAIR_V2, null);
-        admin().formParam("version", "2").post("/admin/prompts/json_repair/labels/production").then().statusCode(303);
-        assertEquals(2, registry.labels(PromptKey.JSON_REPAIR).get(PromptLabel.PRODUCTION));
-    }
-
-    @Test
-    void showOverridesFromForm() {
-        Show show = TestData.show("ovr");
-        admin().formParam("rank", "1").formParam("segment", "").formParam("framing", "").formParam("json_repair", "")
-                .post("/admin/shows/" + show.id + "/prompts").then().statusCode(303);
-        assertEquals(Map.of(PromptKey.RANK, 1), registry.overrides(show.id));
-        admin().get("/admin/shows/" + show.id + "?tab=prompts").then().statusCode(200).body(containsString("Prompt overrides"));
-        admin().formParam("rank", "").formParam("segment", "").formParam("framing", "").formParam("json_repair", "")
-                .post("/admin/shows/" + show.id + "/prompts").then().statusCode(303);
-        assertTrue(registry.overrides(show.id).isEmpty());
+    void firstDefaultVersionRenders() {
+        admin().get("/admin/prompts/rank").then().statusCode(200)
+                .body(containsString("v1 (first version)")).body(containsString("Existing shows change only via Reset to default"))
+                .body(not(containsString("Promote")));
     }
 
     @Test
@@ -106,6 +94,6 @@ class PromptAdminTest {
         assertTrue(html.contains("data-insert-var=\"{error}\""), "variable chips");
         admin().formParam("body", REPAIR_V2).formParam("note", "plain form").post("/admin/prompts/json_repair/versions")
                 .then().statusCode(303);
-        assertEquals(2, registry.labels(PromptKey.JSON_REPAIR).get(PromptLabel.DRAFT));
+        assertEquals(2, registry.latestDefault(PromptKey.JSON_REPAIR).version);
     }
 }

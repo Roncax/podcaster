@@ -6,6 +6,7 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.common.WithTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.roncax.podcaster.support.TestData;
@@ -16,31 +17,40 @@ import org.roncax.podcaster.support.WireMockResource;
 @WithTestResource(org.roncax.podcaster.support.PostgresResource.class)
 class PromptSeederTest {
     @Inject PromptSeeder seeder;
+    @Inject PromptRegistry registry;
 
     @BeforeEach
     void clean() { TestData.cleanDb(); }
 
     @Test
-    void seedsVersionOneWithBothLabels() {
+    void seedsDefaultVersionOneWithoutLabels() {
         for (PromptKey key : PromptKey.values()) {
-            PromptVersion v = QuarkusTransaction.requiringNew().call(() ->
-                    PromptVersion.<PromptVersion>find("promptKey = ?1 and version = 1", key.dbKey()).firstResult());
-            assertNotNull(v, "missing v1 for " + key);
+            PromptVersion v = registry.latestDefault(key);
+            assertEquals(1, v.version);
             assertEquals(key.seedBody(), v.body);
-            for (PromptLabel label : PromptLabel.values()) {
-                PromptLabelAssignment a = QuarkusTransaction.requiringNew().call(() ->
-                        PromptLabelAssignment.<PromptLabelAssignment>find("promptKey = ?1 and label = ?2", key.dbKey(), label.dbValue()).firstResult());
-                assertEquals(v.id, a.versionId, key + " " + label);
-            }
         }
+        assertEquals(0L, QuarkusTransaction.requiringNew().call(() -> PromptLabelAssignment.count()));
     }
 
     @Test
     void seedingIsIdempotent() {
         seeder.seed();
         seeder.seed();
-        long versions = QuarkusTransaction.requiringNew().call(() -> PromptVersion.count());
-        assertEquals(PromptKey.values().length, versions);
+        assertEquals(PromptKey.values().length, QuarkusTransaction.requiringNew().call(() -> PromptVersion.count("showId is null")));
+    }
+
+    @Test
+    void backfillsShowsMissingPrompts() {
+        long showId = QuarkusTransaction.requiringNew().call(() -> {
+            org.roncax.podcaster.domain.Show s = new org.roncax.podcaster.domain.Show();
+            s.name = "Raw"; s.slug = "raw"; s.language = "it"; s.voiceId = "it_IT-paola-medium"; s.writerModel = "fake";
+            s.persist();
+            return s.id;
+        });
+        seeder.seed();
+        for (PromptKey key : PromptKey.values()) {
+            assertEquals(Map.of(PromptLabel.PRODUCTION, 1, PromptLabel.DRAFT, 1), registry.labels(showId, key));
+        }
     }
 
     @Test

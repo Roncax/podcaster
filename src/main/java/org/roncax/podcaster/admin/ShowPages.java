@@ -17,7 +17,6 @@ import org.jboss.resteasy.reactive.RestHeader;
 import org.jboss.resteasy.reactive.RestPath;
 import org.jboss.resteasy.reactive.RestQuery;
 import org.roncax.podcaster.admin.AdminViews.*;
-import org.roncax.podcaster.admin.PromptAdminViews.OverrideRow;
 import org.roncax.podcaster.api.*;
 import org.roncax.podcaster.domain.*;
 import org.roncax.podcaster.generation.Prompts;
@@ -25,15 +24,13 @@ import org.roncax.podcaster.ingestion.ConnectorRegistry;
 import org.roncax.podcaster.ingestion.reddit.RedditSourceConnector;
 import org.roncax.podcaster.ingestion.RssSourceConnector;
 import org.roncax.podcaster.llm.ChatModelRegistry;
-import org.roncax.podcaster.prompts.PromptKey;
-import org.roncax.podcaster.prompts.PromptRegistry;
 import org.roncax.podcaster.runs.RunAlreadyActiveException;
 import org.roncax.podcaster.runs.RunLauncher;
 
 @Path("/admin")
 @Produces(MediaType.TEXT_HTML)
 public class ShowPages {
-    static final Set<String> TABS = Set.of("overview", "sources", "episodes", "settings", "prompts");
+    static final Set<String> TABS = Set.of("overview", "sources", "episodes", "settings");
 
     @CheckedTemplate
     static class Templates {
@@ -42,7 +39,7 @@ public class ShowPages {
                                               List<EpisodeLink> episodes, List<RunRow> runs, List<SourceRow> sources,
                                               List<String> sourceErrors, ShowForm form, String formAction, List<String> errors,
                                               Set<String> models, Set<String> voices, Set<String> connectors,
-                                              List<OverrideRow> overrides, String cronText);
+                                              String cronText);
         static native TemplateInstance live(long showId, LiveRun live);
         static native TemplateInstance sourceTest(SourceTestResult result);
     }
@@ -51,7 +48,6 @@ public class ShowPages {
     @Inject RunLauncher launcher;
     @Inject ChatModelRegistry models;
     @Inject ConnectorRegistry connectors;
-    @Inject PromptRegistry prompts;
     @Inject AdminSupport support;
 
     @GET
@@ -184,19 +180,6 @@ public class ShowPages {
         return Templates.live(id, support.liveRun(id));
     }
 
-    @POST
-    @Path("/shows/{id}/prompts")
-    public Response saveOverrides(@RestPath long id, @RestForm String rank, @RestForm String segment,
-                                  @RestForm String framing, @RestForm("json_repair") String jsonRepair) {
-        Map<PromptKey, String> form = Map.of(PromptKey.RANK, nz(rank), PromptKey.SEGMENT, nz(segment),
-                PromptKey.FRAMING, nz(framing), PromptKey.JSON_REPAIR, nz(jsonRepair));
-        form.forEach((key, value) -> {
-            if (value.isBlank()) prompts.unpin(id, key);
-            else prompts.pin(id, key, Integer.parseInt(value.trim()));
-        });
-        return Response.seeOther(URI.create("/admin/shows/" + id + "?tab=prompts")).build();
-    }
-
     private TemplateInstance listTemplate(ShowForm form, List<String> errors) {
         List<Show> all = QuarkusTransaction.requiringNew().call(() -> Show.<Show>listAll(Sort.by("name")));
         return Templates.list(all.stream().map(support::showCard).toList(), form, errors, models.availableNames(), support.voices());
@@ -225,16 +208,7 @@ public class ShowPages {
                 }).toList();
         return Templates.detail(show, t, chips, support.liveRun(show.id), episodes, runs, sources, sourceErrors, form,
                 "/admin/shows/" + show.id, errors, models.availableNames(), support.voices(), connectors.types(),
-                overrideRows(show.id), AdminSupport.cronText(show.cron));
-    }
-
-    private List<OverrideRow> overrideRows(long showId) {
-        Map<PromptKey, Integer> pinned = prompts.overrides(showId);
-        List<OverrideRow> rows = new ArrayList<>();
-        for (PromptKey key : PromptKey.values()) {
-            rows.add(new OverrideRow(key.dbKey(), pinned.get(key), prompts.versions(key).stream().map(v -> v.version).toList()));
-        }
-        return rows;
+                AdminSupport.cronText(show.cron));
     }
 
     private static Show find(long id) {
@@ -252,6 +226,4 @@ public class ShowPages {
     }
 
     private static boolean notBlank(String s) { return s != null && !s.isBlank(); }
-
-    private static String nz(String s) { return s == null ? "" : s; }
 }

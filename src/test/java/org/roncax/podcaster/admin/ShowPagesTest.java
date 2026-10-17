@@ -143,10 +143,9 @@ class ShowPagesTest {
     @Test
     void tabsRender() {
         Show show = TestData.show("tabs");
-        for (String tab : new String[] {"overview", "sources", "episodes", "settings", "prompts"}) {
+        for (String tab : new String[] {"overview", "sources", "episodes", "settings"}) {
             admin().get("/admin/shows/" + show.id + "?tab=" + tab).then().statusCode(200).body(containsString("aria-selected=\"true\""));
         }
-        admin().get("/admin/shows/" + show.id + "?tab=prompts").then().statusCode(200).body(containsString("Prompt overrides"));
     }
 
     @Test

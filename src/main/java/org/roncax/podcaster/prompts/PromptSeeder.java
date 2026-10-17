@@ -5,9 +5,11 @@ import io.quarkus.runtime.StartupEvent;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
+import org.roncax.podcaster.domain.Show;
 
-/** Inserts missing prompts with their v1 seed text and points both labels at it. Idempotent. */
+/** Inserts missing default prompts with their seed text and forks prompts for shows that lack any. Idempotent. */
 @ApplicationScoped
 public class PromptSeeder {
     private static final Logger LOG = Logger.getLogger(PromptSeeder.class);
@@ -15,6 +17,8 @@ public class PromptSeeder {
     void onStart(@Observes @Priority(10) StartupEvent event) {
         seed();
     }
+
+    @Inject PromptRegistry registry;
 
     public void seed() {
         QuarkusTransaction.requiringNew().run(() -> {
@@ -25,22 +29,16 @@ public class PromptSeeder {
                     p.description = key.description();
                     p.persist();
                 }
-                if (PromptVersion.count("promptKey", key.dbKey()) > 0) continue;
+                if (PromptVersion.count("showId is null and promptKey = ?1", key.dbKey()) > 0) continue;
                 PromptVersion v = new PromptVersion();
                 v.promptKey = key.dbKey();
                 v.version = 1;
                 v.body = key.seedBody();
                 v.note = "Initial version";
                 v.persist();
-                for (PromptLabel label : PromptLabel.values()) {
-                    PromptLabelAssignment a = new PromptLabelAssignment();
-                    a.promptKey = key.dbKey();
-                    a.label = label.dbValue();
-                    a.versionId = v.id;
-                    a.persist();
-                }
-                LOG.infof("Seeded prompt %s v1", key.dbKey());
+                LOG.infof("Seeded default prompt %s v1", key.dbKey());
             }
+            for (Show show : Show.<Show>listAll()) registry.fork(show.id);
         });
     }
 }
