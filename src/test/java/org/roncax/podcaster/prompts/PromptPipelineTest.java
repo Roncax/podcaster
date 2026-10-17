@@ -59,8 +59,8 @@ class PromptPipelineTest {
 
     @Test
     void promotedRankVersionIsUsed() {
-        registry.createVersion(PromptKey.RANK, RANK_V2, "test");
-        registry.setLabel(PromptKey.RANK, PromptLabel.PRODUCTION, 2);
+        registry.createVersion(show.id, PromptKey.RANK, RANK_V2, "test");
+        registry.setLabel(show.id, PromptKey.RANK, PromptLabel.PRODUCTION, 2);
 
         Run run = TestData.awaitRun(launcher.launch(show.id, RunTrigger.MANUAL));
 
@@ -70,14 +70,17 @@ class PromptPipelineTest {
     }
 
     @Test
-    void pinnedShowUsesPinnedDraftVersion() {
-        registry.createVersion(PromptKey.RANK, RANK_V2, "draft only");
-        registry.pin(show.id, PromptKey.RANK, 2);
+    void otherShowsKeepTheirOwnPrompts() {
+        Show other = TestData.show("other-pipe");
+        TestData.source(other.id, wm.baseUrl() + "/lfeed");
+        registry.createVersion(show.id, PromptKey.RANK, RANK_V2, "only this show");
+        registry.setLabel(show.id, PromptKey.RANK, PromptLabel.PRODUCTION, 2);
 
-        Run run = TestData.awaitRun(launcher.launch(show.id, RunTrigger.MANUAL));
+        Run run = TestData.awaitRun(launcher.launch(other.id, RunTrigger.MANUAL));
 
-        assertTrue(model.userMessage(0).contains("MARKER-RANK-V2"));
-        assertEquals(2, episodeOf(run).promptVersions.get("rank"));
+        assertEquals(RunStatus.DONE, run.status, run.error);
+        assertFalse(model.userMessage(0).contains("MARKER-RANK-V2"));
+        assertEquals(1, episodeOf(run).promptVersions.get("rank"));
     }
 
     @Test
@@ -93,8 +96,8 @@ class PromptPipelineTest {
         assertEquals(RunStatus.FAILED, failed.status);
         assertEquals(RunStage.SCRIPT, failed.stage);
 
-        registry.createVersion(PromptKey.SEGMENT, SEGMENT_V2, "fix");
-        registry.setLabel(PromptKey.SEGMENT, PromptLabel.PRODUCTION, 2);
+        registry.createVersion(show.id, PromptKey.SEGMENT, SEGMENT_V2, "fix");
+        registry.setLabel(show.id, PromptKey.SEGMENT, PromptLabel.PRODUCTION, 2);
         launcher.retry(failed.id);
         Run done = TestData.awaitRun(failed.id);
 

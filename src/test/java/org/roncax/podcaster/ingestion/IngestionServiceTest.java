@@ -156,4 +156,21 @@ class IngestionServiceTest {
         List<Item> items = QuarkusTransaction.requiringNew().call(() -> Item.<Item>list("showId", show.id));
         assertEquals(List.of("Good"), items.stream().map(i -> i.title).toList());
     }
+
+    @Test
+    void collectExtractsWithoutPersisting() throws Exception {
+        Show show = TestData.show("col");
+        Source source = TestData.source(show.id, wm.baseUrl() + "/feedc");
+        stubFeed("/feedc", rss("First story|/c1", "Second story|/c2"));
+        stubArticle("/c1");
+        stubArticle("/c2");
+
+        List<CollectedItem> items = ingestion.collect(source, since(), url -> url.endsWith("/c2"));
+
+        assertEquals(1, items.size());
+        assertTrue(items.get(0).fullText().contains("sciopero"));
+        assertNotNull(items.get(0).contentHash());
+        assertEquals(0L, (long) QuarkusTransaction.requiringNew().call(() -> Item.count("showId", show.id)));
+        assertNull(QuarkusTransaction.requiringNew().call(() -> Source.<Source>findById(source.id).lastFetchedAt));
+    }
 }

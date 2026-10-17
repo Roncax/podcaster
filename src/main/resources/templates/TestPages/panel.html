@@ -1,0 +1,80 @@
+{! Only #test-status polls while a step runs; it fires test-done when the step ends, refreshing this panel once. !}
+<section id="test-panel" class="flex flex-col gap-4" aria-live="polite"
+  hx-get="/admin/shows/{showId}/test" hx-trigger="test-done from:body" hx-swap="outerHTML">
+  {#include TestPages/status showId=showId running=running /}
+  {#if errors}<div role="alert" class="rounded-xl bg-fail-bg p-3 text-sm text-fail"><ul class="m-0 pl-5">{#for e in errors}<li>{e}</li>{/for}</ul></div>{/if}
+
+  <div class="card">
+    <div class="flex flex-wrap items-center gap-3">
+      <h2 class="m-0 text-base font-semibold">1 · Sources</h2>
+      <span class="mono text-xs text-muted">{session.steps.get('SOURCES').status}</span>
+      <form class="ml-auto" method="post" action="/admin/shows/{showId}/test/sources" hx-post="/admin/shows/{showId}/test/sources" hx-target="#test-panel" hx-swap="outerHTML">
+        <button type="submit" class="btn btn-secondary" {#if running}disabled{/if}>Fetch sources</button>
+      </form>
+    </div>
+    <p class="m-0 text-xs text-muted">Fetches every enabled source like a real run, but stores nothing.</p>
+    {#if session.steps.get('SOURCES').error}<p class="m-0 rounded-lg bg-fail-bg px-3 py-2 text-sm text-fail">{session.steps.get('SOURCES').error}</p>{/if}
+    {#for src in session.sources}
+    <details class="border-t border-line pt-2">
+      <summary class="cursor-pointer text-sm"><strong>{src.label}</strong> · {#if src.error}<span class="text-fail">{src.error}</span>{#else}{src.items} items{/if}</summary>
+      <ul class="m-0 mt-2 flex flex-col gap-1 pl-5 text-sm">
+        {#for it in session.items}{#if it.sourceId == src.sourceId}
+        <li>{#if it.url.safeHref}<a href="{it.url.safeHref}" class="link" rel="noreferrer">{it.title}</a>{#else}{it.title}{/if} <span class="mono text-xs text-muted">#{it.id} · {#if it.hasFullText}full text{#else}summary only{/if} · {it.textLength} chars</span></li>
+        {/if}{/for}
+      </ul>
+    </details>
+    {/for}
+  </div>
+
+  <div class="card">
+    <div class="flex flex-wrap items-center gap-3">
+      <h2 class="m-0 text-base font-semibold">2 · Prompts</h2>
+      <span class="mono text-xs text-muted">{session.steps.get('PROMPTS').status}</span>
+    </div>
+    <form method="post" action="/admin/shows/{showId}/test/prompts" hx-post="/admin/shows/{showId}/test/prompts" hx-target="#test-panel" hx-swap="outerHTML" class="flex flex-wrap items-end gap-2">
+      <label class="field"><span class="field-label">Prompts</span><select class="field-input" name="mode"><option value="draft" {#if form.mode == 'draft'}selected{/if}>Draft</option><option value="production" {#if form.mode == 'production'}selected{/if}>Production</option></select></label>
+      <label class="field"><span class="field-label">Items</span><select class="field-input" name="items">
+        <option value="session" {#if session.items.isEmpty()}disabled{/if} {#if form.items == 'session'}selected{/if}>Fetched in step 1</option>
+        <option value="database" {#if form.items == 'database'}selected{/if}>Unused in database</option></select></label>
+      <button type="submit" class="btn btn-secondary" {#if running}disabled{/if}>Run dry-run</button>
+      {#if session.items.isEmpty()}<span class="text-xs text-muted">Fetch sources first to test on fresh items.</span>{/if}
+    </form>
+    {#if session.steps.get('PROMPTS').error}<p class="m-0 rounded-lg bg-fail-bg px-3 py-2 text-sm text-fail">{session.steps.get('PROMPTS').error}</p>{/if}
+    {#if session.dryRun}
+    <div class="flex flex-col gap-2 rounded-xl bg-ground p-4 text-sm">
+      <p class="m-0"><strong>{session.dryRun.title}</strong> <span class="mono text-xs text-muted">· prompt versions {session.dryRun.promptVersions}</span></p>
+      <p class="m-0 whitespace-pre-wrap">{session.dryRun.description}</p>
+      <ol class="m-0 pl-5">{#for seg in session.dryRun.outline.segments}<li>{seg.headline} <span class="mono text-xs text-muted">{seg.words} words · items {seg.itemIds}</span></li>{/for}</ol>
+      {#for part in session.dryRun.scriptParts}
+      <div class="flex flex-col gap-1 border-t border-line pt-2">
+        <p class="m-0 leading-relaxed whitespace-pre-wrap" id="part-{part_index}">{part}</p>
+        <div><button type="button" class="btn btn-secondary btn-sm" data-voice-part="part-{part_index}">Voice this</button></div>
+      </div>
+      {/for}
+    </div>
+    {/if}
+  </div>
+
+  <div class="card">
+    <div class="flex flex-wrap items-center gap-3">
+      <h2 class="m-0 text-base font-semibold">3 · Voice</h2>
+      <span class="mono text-xs text-muted">{session.steps.get('VOICE').status}</span>
+    </div>
+    <form method="post" action="/admin/shows/{showId}/test/voice" hx-post="/admin/shows/{showId}/test/voice" hx-target="#test-panel" hx-swap="outerHTML" class="flex flex-col gap-2">
+      <label class="field"><span class="field-label">Text (max {maxChars} characters)</span>
+        <textarea class="field-input" name="text" rows="5" maxlength="{maxChars}" data-voice-text>{form.text}</textarea></label>
+      <div class="flex flex-wrap items-end gap-2">
+        <label class="field"><span class="field-label">Voice</span><select class="field-input" name="voiceId">{#for v in voices}<option value="{v}" {#if v == form.voiceId}selected{/if}>{v}</option>{/for}</select></label>
+        <label class="field"><span class="field-label">Length scale</span><input class="field-input" name="lengthScale" type="number" step="0.05" min="0.5" max="2.0" value="{form.lengthScale}"></label>
+        <button type="submit" class="btn btn-secondary" {#if running}disabled{/if}>Synthesize</button>
+      </div>
+    </form>
+    {#if session.steps.get('VOICE').error}<p class="m-0 rounded-lg bg-fail-bg px-3 py-2 text-sm text-fail">{session.steps.get('VOICE').error}</p>{/if}
+    {#if session.clip}
+    <div class="flex flex-wrap items-center gap-3">
+      <audio id="test-clip-{session.clip.seq}" hx-preserve controls preload="auto" src="{session.clip.audioUrl}?v={session.clip.seq}"></audio>
+      <span class="mono text-xs text-muted">{session.clip.voiceId} · ×{session.clip.lengthScale} · {session.clip.durationSeconds}s · {session.clip.wordsPerMinute} wpm</span>
+    </div>
+    {/if}
+  </div>
+</section>

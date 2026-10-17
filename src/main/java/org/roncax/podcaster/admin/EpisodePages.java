@@ -20,7 +20,7 @@ public class EpisodePages {
 
     public record EpisodeView(long id, String title, long showId, String showName, String date, String duration, String size,
                               long runId, String audioUrl, List<ChapterView> chapters, List<String> madeWith,
-                              List<String> scriptParts, String description) {}
+                              List<String> scriptParts, String description, boolean globalPrompts) {}
 
     @CheckedTemplate
     static class Templates {
@@ -58,7 +58,7 @@ public class EpisodePages {
         EpisodeView view = new EpisodeView(e.id, e.title == null ? "Untitled episode" : e.title, e.showId,
                 show == null ? "Deleted show" : show.name, AdminSupport.day(e.publishedAt), AdminSupport.duration(e.durationSeconds), size,
                 e.runId, AdminSupport.audioUrl(e, show), support.chapters(e), madeWith,
-                e.scriptParts == null ? List.of() : e.scriptParts, e.description);
+                e.scriptParts == null ? List.of() : e.scriptParts, e.description, e.promptVersionsGlobal);
         return Templates.detail(view);
     }
 }

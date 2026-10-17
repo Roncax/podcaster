@@ -31,7 +31,8 @@
   </section>
   <aside class="grow basis-80 flex flex-col gap-4">
     <section class="card"><h2 class="m-0 text-[15px] font-semibold">Made with</h2>
-      <ul class="m-0 flex flex-wrap gap-1.5 p-0" role="list">{#for m in episode.madeWith}<li class="mono rounded-md bg-ground px-2 py-1 text-xs text-[#3D4957]">{m}</li>{/for}</ul></section>
+      <ul class="m-0 flex flex-wrap gap-1.5 p-0" role="list">{#for m in episode.madeWith}<li class="mono rounded-md bg-ground px-2 py-1 text-xs text-[#3D4957]">{m}</li>{/for}</ul>
+      {#if episode.globalPrompts}<p class="m-0 text-xs text-muted">Prompt versions refer to the global registry (pre per-show prompts).</p>{/if}</section>
     {#if episode.description}<section class="card"><h2 class="m-0 text-[15px] font-semibold">Show notes</h2><p class="m-0 whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{episode.description}</p></section>{/if}
     <section class="card"><h2 class="m-0 text-[15px] font-semibold">Script</h2>
       {#for p in episode.scriptParts}<p class="m-0 text-[15px] leading-relaxed text-[#2B3746]">{p}</p>{/for}</section>

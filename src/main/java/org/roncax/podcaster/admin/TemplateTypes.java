@@ -19,5 +19,4 @@ import org.roncax.podcaster.ingestion.RawItem;
 @TemplateData(target = AdminViews.SourceLink.class)
 @TemplateData(target = AdminViews.LiveRun.class)
 @TemplateData(target = EpisodePages.EpisodeView.class)
-@TemplateData(target = PromptAdminViews.OverrideRow.class)
 public class TemplateTypes {}

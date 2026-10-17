@@ -23,7 +23,6 @@ public final class TestData {
 
     public static void resetPrompts() {
         QuarkusTransaction.requiringNew().run(() -> {
-            org.roncax.podcaster.prompts.ShowPromptOverride.deleteAll();
             org.roncax.podcaster.prompts.PromptLabelAssignment.deleteAll();
             org.roncax.podcaster.prompts.PromptVersion.deleteAll();
         });
@@ -42,6 +41,7 @@ public final class TestData {
             s.minItems = 1;
             s.targetDurationMinutes = 5;
             s.persist();
+            io.quarkus.arc.Arc.container().instance(org.roncax.podcaster.prompts.PromptRegistry.class).get().fork(s.id);
             return s;
         });
     }

@@ -30,13 +30,24 @@ Each Show picks a writer model and optionally a cheaper ranker model by slot nam
 
 ## Prompts
 
-Every prompt sent to the LLM (`rank`, `segment`, `framing`, `json_repair`) lives in the database as immutable versions, editable at `/admin/prompts` or via `/api/prompts`.
+Every prompt sent to the LLM (`rank`, `segment`, `framing`, `json_repair`) is stored in the database as immutable versions.
 
-- Saving creates a new version labelled **draft**. Runs use **production**; promoting a version (or an older one, to roll back) takes effect on the next run, no restart.
-- **Dry-run** renders a full script for a show with the draft prompts without publishing anything.
-- A show can pin a specific version of any prompt (show page → Prompt overrides).
+- Every show owns its prompts (`rank`, `segment`, `framing`, `json_repair`) as immutable versions with `production` (used by runs) and `draft` labels: show page → Prompts, or `/api/shows/{id}/prompts`.
+- New shows copy the **default prompts** (`/admin/prompts`, `/api/prompts`). Editing a default never changes existing shows; use **Reset to default** on a show's prompt to pull it in as a draft.
 - Templates support plain variables (`{variable}`) and `{#if focus}…{#else}…{/if}` only: no property/method access, loops, includes or namespaces. Allowed variables are listed per prompt; `{contract}` (required in `rank` and `framing`) inserts the JSON format the app parses. Invalid templates are rejected on save.
 - Each episode records the prompt versions that produced it (`promptVersions` in `/api/episodes/{id}`).
+
+## Test tab
+
+The show page → Test tab dry-runs:
+
+- (1) fetching all sources
+- (2) rank/outline/script with draft or production prompts on the fetched or unused DB items
+- (3) a clip of up to 1,000 characters in the show's voice or another one
+
+Nothing is stored, and results live in memory for 30 minutes.
+
+API: `/api/shows/{id}/test` (`GET`, `POST /sources`, `POST /prompts {mode, items}`, `POST /voice {text|part, voiceId?, lengthScale?}`, `GET /voice.wav`)
 
 ## Voices
 
@@ -63,7 +74,7 @@ It then appears in the admin UI connector list. For cleaner article text on a sp
 
 ## Admin UI
 
-`http://<server>:8080/admin` (log in with `PODCASTER_API_KEY`): dashboard of shows and runs, live run progress, sources per show (RSS, Reddit), episodes with a chapter player and per-story sources, prompt versions with diff, editor and dry-run, and read-only settings. Assets (Tailwind, fonts, htmx, CodeMirror) are bundled by the Quarkus Web Bundler at build time: no Node and no CDN, so it works offline on your LAN.
+`http://<server>:8080/admin` (log in with `PODCASTER_API_KEY`): dashboard of shows and runs, live run progress, sources per show (RSS, Reddit), episodes with a chapter player and per-story sources, per-show prompt versions with diff and editor, default prompts, a Test tab, and read-only settings. Assets (Tailwind, fonts, htmx, CodeMirror) are bundled by the Quarkus Web Bundler at build time: no Node and no CDN, so it works offline on your LAN.
 
 ## Database UI
 
@@ -87,6 +98,15 @@ Pushes to `main` (and `v*` tags) build `ghcr.io/roncax/podcaster` and `ghcr.io/r
    ```
 3. Container Manager → **Project → Create**, path `/volume1/docker/podcaster`, use the existing `docker-compose.yml`.
 4. To update: `cd /volume1/docker/podcaster && sudo docker compose pull && sudo docker compose up -d` (or stop the project, pull the new images under **Image**, and start it again).
+
+**Release note: per-show prompts (migration V6) has no rollback.** It converts the prompts into one copy per show and drops the old per-show pins. Before deploying it, dump the database:
+
+```bash
+cd /volume1/docker/podcaster
+sudo docker compose exec -T postgres pg_dump -U podcaster -Fc podcaster > podcaster-before-v6.dump
+```
+
+Rolling back means restoring that dump (`pg_restore --clean`) together with the previous image: an older image will not start against the migrated database.
 
 ### Public feed (DSM reverse proxy + Caddy)
 

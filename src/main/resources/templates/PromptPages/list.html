@@ -1,12 +1,12 @@
-{#layout title="Prompts" active="prompts"}
-<h1 class="m-0 text-3xl font-bold">Prompts</h1>
-<p class="m-0 text-sm text-muted">Every prompt sent to the LLM. Versions are immutable: <strong>production</strong> is used by runs, <strong>draft</strong> by dry-runs.</p>
-<section class="grid gap-4 md:grid-cols-2" aria-label="Prompts">
+{#layout title="Default prompts" active="prompts"}
+<h1 class="m-0 text-3xl font-bold">Default prompts</h1>
+<p class="m-0 text-sm text-muted">Starting prompts for new shows. Each show has its own copy under its Prompts tab; editing a default never changes existing shows.</p>
+<section class="grid gap-4 md:grid-cols-2" aria-label="Default prompts">
   {#for r in rows}
   <a href="/admin/prompts/{r.key}" class="card no-underline text-ink hover:ring-accent">
     <span class="mono text-base font-semibold">{r.key}</span>
     <span class="text-sm text-muted">{r.description}</span>
-    <span class="flex gap-2">{#badge tone='ok'}production v{r.production}{/badge}{#badge tone='info'}draft v{r.draft}{/badge}</span>
+    <span class="flex gap-2">{#badge tone='info'}latest v{r.latest}{/badge}</span>
   </a>
   {/for}
 </section>

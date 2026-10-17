@@ -23,6 +23,7 @@ public class Episode extends PanacheEntityBase {
     public String script;
     @JdbcTypeCode(SqlTypes.JSON) public List<Chapter> chapters;
     @JdbcTypeCode(SqlTypes.JSON) public java.util.Map<String, Integer> promptVersions;
+    public boolean promptVersionsGlobal;
     public String audioPath;
     public Double durationSeconds;
     public Long sizeBytes;

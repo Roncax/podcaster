@@ -41,7 +41,7 @@ class PromptAdminTest {
     @Test
     void promptsPageListsAllPrompts() {
         admin().get("/admin/prompts").then().statusCode(200)
-                .body(containsString("rank")).body(containsString("segment"))
+                .body(containsString("Default prompts")).body(containsString("rank")).body(containsString("segment"))
                 .body(containsString("framing")).body(containsString("json_repair"));
     }
 
@@ -61,39 +61,10 @@ class PromptAdminTest {
     }
 
     @Test
-    void promoteFromForm() {
-        registry.createVersion(PromptKey.JSON_REPAIR, REPAIR_V2, null);
-        admin().formParam("version", "2").post("/admin/prompts/json_repair/labels/production").then().statusCode(303);
-        assertEquals(2, registry.labels(PromptKey.JSON_REPAIR).get(PromptLabel.PRODUCTION));
-    }
-
-    @Test
-    void showOverridesFromForm() {
-        Show show = TestData.show("ovr");
-        admin().formParam("rank", "1").formParam("segment", "").formParam("framing", "").formParam("json_repair", "")
-                .post("/admin/shows/" + show.id + "/prompts").then().statusCode(303);
-        assertEquals(Map.of(PromptKey.RANK, 1), registry.overrides(show.id));
-        admin().get("/admin/shows/" + show.id + "?tab=prompts").then().statusCode(200).body(containsString("Prompt overrides"));
-        admin().formParam("rank", "").formParam("segment", "").formParam("framing", "").formParam("json_repair", "")
-                .post("/admin/shows/" + show.id + "/prompts").then().statusCode(303);
-        assertTrue(registry.overrides(show.id).isEmpty());
-    }
-
-    @Test
-    void dryRunFragmentExplainsMissingItems() {
-        Show show = TestData.show("dryui");
-        admin().formParam("showId", String.valueOf(show.id)).post("/admin/prompts/dry-run").then().statusCode(200)
-                .body(containsString("No unused items"));
-    }
-
-    @Test
-    void dryRunFragmentShowsModelFailure() {
-        Show show = TestData.show("dryfail");
-        var source = TestData.source(show.id, "http://unused/feed");
-        TestData.item(show.id, source.id, "http://story/x", java.time.Instant.now());
-        FakeChatModelRegistry.install(new FakeChatModel().responder(prompt -> { throw new RuntimeException("connection refused by model host"); }));
-        admin().formParam("showId", String.valueOf(show.id)).post("/admin/prompts/dry-run").then().statusCode(200)
-                .body(containsString("connection refused by model host"));
+    void firstDefaultVersionRenders() {
+        admin().get("/admin/prompts/rank").then().statusCode(200)
+                .body(containsString("v1 (first version)")).body(containsString("Existing shows change only via Reset to default"))
+                .body(not(containsString("Promote")));
     }
 
     @Test
@@ -106,6 +77,35 @@ class PromptAdminTest {
         assertTrue(html.contains("data-insert-var=\"{error}\""), "variable chips");
         admin().formParam("body", REPAIR_V2).formParam("note", "plain form").post("/admin/prompts/json_repair/versions")
                 .then().statusCode(303);
-        assertEquals(2, registry.labels(PromptKey.JSON_REPAIR).get(PromptLabel.DRAFT));
+        assertEquals(2, registry.latestDefault(PromptKey.JSON_REPAIR).version);
+    }
+
+    @Test
+    void showPromptsTabListsKeys() {
+        Show show = TestData.show("tabp");
+        admin().get("/admin/shows/" + show.id + "?tab=prompts").then().statusCode(200)
+                .body(containsString("/admin/shows/" + show.id + "/prompts/rank")).body(containsString("production v1"));
+    }
+
+    @Test
+    void showPromptCreatePromoteAndReset() {
+        Show show = TestData.show("pp");
+        String base = "/admin/shows/" + show.id + "/prompts/json_repair";
+        String location = admin().formParam("body", REPAIR_V2).formParam("note", "shorter")
+                .post(base + "/versions").then().statusCode(303).extract().header("Location");
+        assertTrue(location.endsWith(base + "?v=2"), location);
+        admin().get(base + "?v=2").then().statusCode(200).body(containsString("shorter")).body(containsString("diff-add"))
+                .body(containsString("Promote")).body(containsString("Reset to default"));
+        admin().formParam("version", "2").post(base + "/labels/production").then().statusCode(303);
+        assertEquals(2, registry.labels(show.id, PromptKey.JSON_REPAIR).get(PromptLabel.PRODUCTION));
+        admin().post(base + "/reset").then().statusCode(303);
+        assertEquals(3, registry.labels(show.id, PromptKey.JSON_REPAIR).get(PromptLabel.DRAFT));
+    }
+
+    @Test
+    void invalidShowPromptKeepsText() {
+        Show show = TestData.show("ppbad");
+        admin().formParam("body", "no placeholders").post("/admin/shows/" + show.id + "/prompts/json_repair/versions")
+                .then().statusCode(200).body(containsString("Missing required variable")).body(containsString("no placeholders"));
     }
 }
