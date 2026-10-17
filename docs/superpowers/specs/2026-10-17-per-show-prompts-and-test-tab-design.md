@@ -78,7 +78,7 @@ Every write calls `PromptResolver.invalidate()`.
 | `TestSessionStore` | `ConcurrentHashMap<Long, TestSession>`. A scheduled sweep removes sessions idle for 30 minutes. Sessions are lost on restart. |
 | `SourceDryRun` | For every enabled source of the show, it fetches items since now − `selection.first-run-window`, filters them and extracts full text, through the same code as ingestion (§4.1). It saves nothing and never calls `markSource`. It does not check URLs against the DB, so you see what the sources return. Items are de-duplicated within the batch by content hash and capped at `selection.max-candidates`. A failing source records its error and the other sources go on. |
 | `PromptDryRun` | Moved from `prompts`. `run(showId, Mode, ItemsSource)`, where `ItemsSource` is `SESSION` (fetched items) or `DATABASE` (unused items of the show, as today). Runs rank → outline → script with the resolved `PromptSet`. Its result is as today (`promptVersions, selection, outline, title, description, scriptParts`). |
-| `VoiceDryRun` | `run(showId, text, voiceId?, lengthScale?)`. Text is at most 1,000 chars (otherwise 400). It runs `TtsTextNormalizer.normalize` → `ScriptChunker.chunk` → `TtsEngine.synthesize` → `AudioAssembler`, and stores the WAV in the session. Uses the show's voice and length scale unless overridden. The result includes the duration and measured words/min. |
+| `VoiceDryRun` | `run(showId, text, voiceId?, lengthScale?)`. Text is at most 1,000 chars (otherwise 400). It runs `TtsTextNormalizer.normalize` → `ScriptChunker.chunk` → `TtsEngine.synthesize` → `WavConcat.concat` (the PCM concatenation extracted from `AudioAssembler`, no ffmpeg), and stores the WAV in the session. Uses the show's voice and length scale unless overridden. The result includes the duration and measured words/min. |
 | `TestRunner` | Starts steps on a managed executor and updates the session's step status. Allows one running step per show (`TestStepBusyException` → 409). Independent from `RunLauncher`, so test steps and real runs never block each other. |
 
 ### 4.1 Shared ingestion refactor
@@ -87,7 +87,7 @@ Every write calls `PromptResolver.invalidate()`.
 
 ### 4.2 Transient items
 
-`SourceDryRun` turns collected items into unsaved `Item` objects with synthetic negative ids (−1, −2, …) and `showId`/`sourceId` set. They are never persisted or attached to a persistence context, so `StoryRanker`, `OutlinePlanner` and `ScriptWriter` work on them unchanged.
+`SourceDryRun` turns collected items into unsaved `Item` objects with synthetic ids 1, 2, 3, … and `showId`/`sourceId` set. Positive ids are used because the ids appear in the rank prompt (`[id=N]`) and a model may drop a minus sign. They cannot collide with DB items because a dry-run uses either session items or DB items, never both. They are never persisted or attached to a persistence context, so `StoryRanker`, `OutlinePlanner` and `ScriptWriter` work on them unchanged.
 
 ## 5. Interfaces
 
@@ -163,7 +163,7 @@ Test (`/shows/{id}/test`):
 - **API:** every per-show and default endpoint, including validation errors, and the removed endpoints return 404/405.
 - **Test steps:**
   - `SourceDryRun` stores no `Item` rows, leaves `lastFetchedAt` and `lastError` unchanged, and reports a failing source while the others succeed
-  - a prompt dry-run over session items with negative ids returns script parts, and draft and production mode use the right versions
+  - a prompt dry-run over session items with synthetic ids returns script parts, and draft and production mode use the right versions
   - `VoiceDryRun` rejects over 1,000 chars and uses the voice override (fake `TtsEngine`)
   - a concurrent step returns 409
   - sessions expire after the idle timeout
