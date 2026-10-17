@@ -17,7 +17,6 @@ import org.roncax.podcaster.prompts.*;
 @Consumes(MediaType.APPLICATION_JSON)
 public class PromptResource {
     @Inject PromptRegistry registry;
-    @Inject PromptDryRun dryRun;
 
     @GET
     public List<DefaultPromptSummary> list() {
@@ -44,12 +43,6 @@ public class PromptResource {
     public RestResponse<VersionDetail> create(@RestPath String key, @Valid NewVersion request) {
         PromptVersion v = registry.createDefaultVersion(key(key), request.body(), request.note());
         return RestResponse.status(Response.Status.CREATED, detail(v));
-    }
-
-    @POST
-    @Path("/dry-run")
-    public PromptDryRun.Result dryRun(@Valid DryRunRequest request) {
-        return dryRun.run(request.showId());
     }
 
     private static VersionDetail detail(PromptVersion v) {

@@ -92,41 +92,4 @@ class PromptApiTest {
     void versionsCannotBeEdited() {
         api().body(Map.of("body", "x")).put("/api/prompts/rank/versions/1").then().statusCode(405);
     }
-
-    @Test
-    void dryRunUsesDraftAndPersistsNothing() {
-        Show show = TestData.show("dry");
-        Source source = TestData.source(show.id, "http://unused/feed");
-        Item item = TestData.item(show.id, source.id, "http://story/1", Instant.now());
-        api().body(Map.of("body", RANK_V2)).post("/api/shows/" + show.id + "/prompts/rank/versions").then().statusCode(201);
-
-        api().body(Map.of("showId", show.id)).post("/api/prompts/dry-run").then().statusCode(200)
-                .body("promptVersions.rank", is(2))
-                .body("scriptParts.size()", is(3))
-                .body("title", is("Test episode"));
-
-        assertTrue(model.userMessage(0).contains("MARKER-RANK-V2"));
-        assertEquals(0L, (long) QuarkusTransaction.requiringNew().call(() -> Episode.count()));
-        assertNull(QuarkusTransaction.requiringNew().call(() -> Item.<Item>findById(item.id).usedInEpisodeId));
-        assertEquals(0L, (long) QuarkusTransaction.requiringNew().call(() -> VoiceCalibration.count()));
-    }
-
-    @Test
-    void dryRunWithoutItemsIs409() {
-        Show show = TestData.show("dry-empty");
-        api().body(Map.of("showId", show.id)).post("/api/prompts/dry-run").then().statusCode(409)
-                .body("error", containsString("No unused items"));
-        assertTrue(model.requests.isEmpty());
-    }
-
-    @Test
-    void dryRunFailureIsReportedNot500() {
-        Show show = TestData.show("dry-broken");
-        Source source = TestData.source(show.id, "http://unused/feed");
-        TestData.item(show.id, source.id, "http://story/broken", Instant.now());
-        model.responder(prompt -> "this is not json");
-
-        api().body(Map.of("showId", show.id)).post("/api/prompts/dry-run").then().statusCode(422)
-                .body("error", containsString("did not return valid JSON"));
-    }
 }

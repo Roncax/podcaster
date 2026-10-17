@@ -23,11 +23,9 @@ public class PromptPages {
     static class Templates {
         static native TemplateInstance list(List<PromptRow> rows);
         static native TemplateInstance detail(PromptPage page);
-        static native TemplateInstance dryRun(PromptDryRun.Result result, String error);
     }
 
     @Inject PromptRegistry prompts;
-    @Inject PromptDryRun dryRun;
 
     @GET
     public TemplateInstance list() {
@@ -55,16 +53,6 @@ public class PromptPages {
             return Response.seeOther(URI.create("/admin/prompts/" + k.dbKey() + "?v=" + created.version)).build();
         } catch (InvalidPromptException e) {
             return Response.ok(defaultPage(k, prompts.latestDefault(k).version, body, note, e.errors())).build();
-        }
-    }
-
-    @POST
-    @Path("/dry-run")
-    public TemplateInstance dryRun(@RestForm long showId) {
-        try {
-            return Templates.dryRun(dryRun.run(showId), null);
-        } catch (RuntimeException e) {
-            return Templates.dryRun(null, e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
         }
     }
 

@@ -5,9 +5,12 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.List;
 import org.jboss.resteasy.reactive.RestPath;
+import java.util.List;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.roncax.podcaster.domain.Show;
+import org.roncax.podcaster.prompts.PromptResolver;
 import org.roncax.podcaster.testing.*;
 
 @Path("/api/shows/{id}/test")
@@ -16,6 +19,7 @@ public class TestResource {
     @Inject TestSessionStore store;
     @Inject TestRunner runner;
     @Inject SourceDryRun sources;
+    @Inject PromptDryRun prompts;
 
     @GET
     public TestViews.Session get(@RestPath long id) {
@@ -30,6 +34,30 @@ public class TestResource {
         requireShow(id);
         runner.start(id, TestSession.Step.SOURCES, s -> s.fetched(sources.run(id)));
         return RestResponse.status(Response.Status.ACCEPTED, get(id));
+    }
+
+    public record PromptStepRequest(String mode, String items) {}
+
+    @POST
+    @Path("/prompts")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public RestResponse<TestViews.Session> dryRunPrompts(@RestPath long id, PromptStepRequest request) {
+        requireShow(id);
+        PromptResolver.Mode mode = parse(PromptResolver.Mode.class, request == null ? null : request.mode(), PromptResolver.Mode.DRAFT, "mode");
+        PromptDryRun.ItemsSource items = parse(PromptDryRun.ItemsSource.class, request == null ? null : request.items(),
+                PromptDryRun.ItemsSource.SESSION, "items");
+        PromptDryRun.Prepared prepared = prompts.prepare(id, mode, items, store.session(id));
+        runner.start(id, TestSession.Step.PROMPTS, s -> s.dryRun(prompts.execute(prepared)));
+        return RestResponse.status(Response.Status.ACCEPTED, get(id));
+    }
+
+    static <E extends Enum<E>> E parse(Class<E> type, String value, E fallback, String field) {
+        if (value == null || value.isBlank()) return fallback;
+        try {
+            return Enum.valueOf(type, value.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new InvalidRequestException(List.of("Unknown " + field + " '" + value + "'"));
+        }
     }
 
     static String audioUrl(long id) { return "/api/shows/" + id + "/test/voice.wav"; }

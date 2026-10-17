@@ -110,4 +110,64 @@ class TestApiTest {
         api().post("/api/shows/" + show.id + "/test/sources").then().statusCode(409);
         await(show.id, "SOURCES");
     }
+
+    @Test
+    void promptDryRunOverFetchedItems() {
+        Show show = showWithFeed("pdr");
+        api().post("/api/shows/" + show.id + "/test/sources").then().statusCode(202);
+        await(show.id, "SOURCES");
+
+        api().body(java.util.Map.of("mode", "draft", "items", "session")).post("/api/shows/" + show.id + "/test/prompts").then().statusCode(202);
+        JsonPath json = await(show.id, "PROMPTS");
+
+        assertEquals("DONE", json.getString("steps.PROMPTS.status"), json.getString("steps.PROMPTS.error"));
+        assertEquals(3, json.getList("dryRun.scriptParts").size());
+        assertEquals("Test episode", json.getString("dryRun.title"));
+        assertTrue(model.userMessage(0).contains("[id=1]"), model.userMessage(0));
+        assertEquals(java.util.List.of(1, 2), json.getList("dryRun.selection.clusters[0].itemIds", Integer.class));
+        assertEquals(0L, (long) QuarkusTransaction.requiringNew().call(() -> Episode.count()));
+        assertEquals(0L, (long) QuarkusTransaction.requiringNew().call(() -> Item.count()));
+        assertEquals(0L, (long) QuarkusTransaction.requiringNew().call(() -> VoiceCalibration.count()));
+    }
+
+    @Test
+    void promptDryRunUsesDraftOrProductionFromDatabase() {
+        Show show = TestData.show("pdb");
+        Source source = TestData.source(show.id, "http://unused/feed");
+        Item item = TestData.item(show.id, source.id, "http://story/1", Instant.now());
+        String rankV2 = "MARKER-RANK-V2 for \"{showName}\".\n{contract}\n\nITEMS:\n{items}\n";
+        api().body(java.util.Map.of("body", rankV2)).post("/api/shows/" + show.id + "/prompts/rank/versions").then().statusCode(201);
+
+        api().body(java.util.Map.of("mode", "production", "items", "database")).post("/api/shows/" + show.id + "/test/prompts").then().statusCode(202);
+        assertEquals(1, await(show.id, "PROMPTS").getInt("dryRun.promptVersions.rank"));
+        assertFalse(model.userMessage(0).contains("MARKER-RANK-V2"));
+
+        api().body(java.util.Map.of("mode", "draft", "items", "database")).post("/api/shows/" + show.id + "/test/prompts").then().statusCode(202);
+        assertEquals(2, await(show.id, "PROMPTS").getInt("dryRun.promptVersions.rank"));
+        assertTrue(model.requests.stream().anyMatch(r -> FakeChatModel.lastUser(r).contains("MARKER-RANK-V2")));
+        assertNull(QuarkusTransaction.requiringNew().call(() -> Item.<Item>findById(item.id).usedInEpisodeId));
+    }
+
+    @Test
+    void promptDryRunWithoutCandidatesIs409() {
+        Show show = TestData.show("pnone");
+        api().body(java.util.Map.of("mode", "draft", "items", "session")).post("/api/shows/" + show.id + "/test/prompts").then()
+                .statusCode(409).body("error", containsString("Fetch sources first"));
+        api().body(java.util.Map.of("mode", "draft", "items", "database")).post("/api/shows/" + show.id + "/test/prompts").then()
+                .statusCode(409).body("error", containsString("No unused items"));
+        api().body(java.util.Map.of("mode", "staging", "items", "database")).post("/api/shows/" + show.id + "/test/prompts").then()
+                .statusCode(400);
+        assertTrue(model.requests.isEmpty());
+    }
+
+    @Test
+    void promptDryRunFailureIsReportedOnTheStep() {
+        Show show = TestData.show("pfail");
+        TestData.item(show.id, TestData.source(show.id, "http://unused/feed").id, "http://story/broken", Instant.now());
+        model.responder(prompt -> "this is not json");
+        api().body(java.util.Map.of("mode", "draft", "items", "database")).post("/api/shows/" + show.id + "/test/prompts").then().statusCode(202);
+        JsonPath json = await(show.id, "PROMPTS");
+        assertEquals("FAILED", json.getString("steps.PROMPTS.status"));
+        assertTrue(json.getString("steps.PROMPTS.error").contains("did not return valid JSON"), json.getString("steps.PROMPTS.error"));
+    }
 }

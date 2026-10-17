@@ -22,7 +22,7 @@ public final class TestSession {
     private final Map<Step, StepState> states = new EnumMap<>(Step.class);
     private volatile Instant touchedAt = Instant.now();
     private Fetched fetched;
-    private Object dryRun; // PromptDryRun.Result; typed in Task 5
+    private PromptDryRun.Result dryRun;
     private Clip clip;
 
     public TestSession(long showId) {
@@ -54,7 +54,7 @@ public final class TestSession {
     public synchronized StepState state(Step step) { return states.get(step); }
     public synchronized Fetched fetched() { return fetched; }
     public synchronized Clip clip() { return clip; }
-    public synchronized Object dryRun() { return dryRun; }
+    public synchronized PromptDryRun.Result dryRun() { return dryRun; }
 
     /** A new fetch invalidates results built on the previous items. */
     public synchronized void fetched(Fetched value) {
@@ -65,6 +65,6 @@ public final class TestSession {
         states.put(Step.VOICE, StepState.IDLE);
     }
 
-    public synchronized void dryRun(Object value) { dryRun = value; }
+    public synchronized void dryRun(PromptDryRun.Result value) { dryRun = value; }
     public synchronized void clip(Clip value) { clip = value; }
 }

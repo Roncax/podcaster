@@ -14,5 +14,4 @@ public final class PromptViews {
     public record VersionDetail(int version, String note, Instant createdAt, List<String> labels, String body) {}
     public record NewVersion(@NotBlank String body, String note) {}
     public record VersionRef(@NotNull Integer version) {}
-    public record DryRunRequest(@NotNull Long showId) {}
 }
