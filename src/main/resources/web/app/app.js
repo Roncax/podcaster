@@ -26,3 +26,12 @@ document.addEventListener("change", (e) => {
   if (e.target.matches?.("[data-connector-select]")) syncConnectorFields(e.target);
 });
 document.querySelectorAll("[data-connector-select]").forEach(syncConnectorFields);
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-voice-part]");
+  if (!button) return;
+  const part = document.getElementById(button.dataset.voicePart);
+  const target = document.querySelector("[data-voice-text]");
+  if (!part || !target) return;
+  target.value = part.textContent.trim().slice(0, Number(target.maxLength) || 1000);
+  target.focus();
+});

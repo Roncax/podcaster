@@ -18,6 +18,7 @@
   <a role="tab" href="?tab=episodes" aria-selected="{#if tab == 'episodes'}true{#else}false{/if}" class="tab {#if tab == 'episodes'}tab-active{/if}">Episodes</a>
   <a role="tab" href="?tab=settings" aria-selected="{#if tab == 'settings'}true{#else}false{/if}" class="tab {#if tab == 'settings'}tab-active{/if}">Settings</a>
   <a role="tab" href="?tab=prompts" aria-selected="{#if tab == 'prompts'}true{#else}false{/if}" class="tab {#if tab == 'prompts'}tab-active{/if}">Prompts</a>
+  <a role="tab" href="?tab=test" aria-selected="{#if tab == 'test'}true{#else}false{/if}" class="tab {#if tab == 'test'}tab-active{/if}">Test</a>
 </div>
 
 {#if tab == 'overview'}
@@ -105,6 +106,8 @@
   </ul>
 </section>
 {/if}
+
+{#if tab == 'test'}{testPanel.raw}{/if}
 
 {#if tab == 'prompts'}
 <section class="card">

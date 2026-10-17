@@ -34,7 +34,7 @@ import org.roncax.podcaster.runs.RunLauncher;
 @Path("/admin")
 @Produces(MediaType.TEXT_HTML)
 public class ShowPages {
-    static final Set<String> TABS = Set.of("overview", "sources", "episodes", "settings", "prompts");
+    static final Set<String> TABS = Set.of("overview", "sources", "episodes", "settings", "prompts", "test");
 
     @CheckedTemplate
     static class Templates {
@@ -43,7 +43,7 @@ public class ShowPages {
                                               List<EpisodeLink> episodes, List<RunRow> runs, List<SourceRow> sources,
                                               List<String> sourceErrors, ShowForm form, String formAction, List<String> errors,
                                               Set<String> models, Set<String> voices, Set<String> connectors,
-                                              String cronText, List<ShowPromptRow> prompts);
+                                              String cronText, List<ShowPromptRow> prompts, String testPanel);
         static native TemplateInstance live(long showId, LiveRun live);
         static native TemplateInstance sourceTest(SourceTestResult result);
     }
@@ -54,6 +54,7 @@ public class ShowPages {
     @Inject ConnectorRegistry connectors;
     @Inject AdminSupport support;
     @Inject PromptRegistry prompts;
+    @Inject TestPages testPages;
 
     @GET
     @Path("/shows")
@@ -211,9 +212,10 @@ public class ShowPages {
                             AdminSupport.when(s.lastFetchedAt), today,
                             s.lastError == null ? "OK" : AdminSupport.abbreviate(s.lastError, 80), s.lastError == null ? "ok" : "warn");
                 }).toList();
+        String testPanel = t.equals("test") ? testPages.panel(show.id, List.of()).render() : null;
         return Templates.detail(show, t, chips, support.liveRun(show.id), episodes, runs, sources, sourceErrors, form,
                 "/admin/shows/" + show.id, errors, models.availableNames(), support.voices(), connectors.types(),
-                AdminSupport.cronText(show.cron), promptRows(show.id));
+                AdminSupport.cronText(show.cron), promptRows(show.id), testPanel);
     }
 
     private List<ShowPromptRow> promptRows(long showId) {

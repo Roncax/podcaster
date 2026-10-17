@@ -29,9 +29,11 @@ public final class TestViews {
                         i.bestText() == null ? 0 : i.bestText().length()))
                 .toList();
         TestSession.Clip c = s.clip();
-        ClipView clip = c == null ? null : new ClipView(c.durationSeconds(), c.wordsPerMinute(), c.voiceId(), c.lengthScale(), audioUrl);
+        ClipView clip = c == null ? null : new ClipView(round(c.durationSeconds()), Math.round(c.wordsPerMinute()), c.voiceId(), c.lengthScale(), audioUrl);
         return new Session(steps, f == null ? List.of() : f.sources(), items, s.dryRun(), clip);
     }
+
+    private static double round(double v) { return Math.round(v * 10) / 10.0; }
 
     public static Session empty(long showId) {
         return of(new TestSession(showId), null);
