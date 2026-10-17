@@ -16,6 +16,16 @@ cross join lateral (
         (select l.version_id from prompt_labels l where l.prompt_key = p.key and l.label = 'production'))
 ) src;
 
+-- Defaults must end on the production body: "latest default" seeds new shows and Reset to default.
+-- Where production is not the highest default version (unpromoted draft, rollback), append a copy of it.
+insert into prompt_versions (prompt_key, show_id, version, body, note, created_at)
+select l.prompt_key, null, m.max + 1, v.body, 'Production at migration (v' || v.version || ')', now()
+from prompt_labels l
+join prompt_versions v on v.id = l.version_id
+join (select prompt_key, max(version) as max from prompt_versions where show_id is null group by prompt_key) m
+  on m.prompt_key = l.prompt_key
+where l.label = 'production' and v.version < m.max;
+
 -- Labels now belong to shows only.
 delete from prompt_labels;
 alter table prompt_labels add column show_id bigint not null references shows(id) on delete cascade;

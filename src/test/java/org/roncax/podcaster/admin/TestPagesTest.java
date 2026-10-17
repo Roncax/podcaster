@@ -61,32 +61,80 @@ class TestPagesTest {
         Show show = TestData.show("tt");
         admin().get("/admin/shows/" + show.id + "?tab=test").then().statusCode(200)
                 .body(containsString("Fetch sources")).body(containsString("Run dry-run")).body(containsString("Synthesize"))
-                .body(containsString("Fetch sources first"));
+                .body(containsString("Fetch sources first"))
+                .body(not(containsString("every 2s"))).body(containsString("hx-trigger=\"test-done from:body\""));
     }
 
     @Test
     void fullChainThroughAdminForms() {
         Show show = showWithFeed("ttc");
         String base = "/admin/shows/" + show.id + "/test";
-        admin().header("HX-Request", "true").post(base + "/sources").then().statusCode(200).body(containsString("hx-trigger=\"every 2s\""));
+        // While running only the small status element polls, never the whole panel.
+        admin().header("HX-Request", "true").post(base + "/sources").then().statusCode(200)
+                .body(containsString("<div id=\"test-status\" class=\"text-xs text-muted\" hx-get=\"" + base + "/status\" hx-trigger=\"every 2s\""))
+                .body(not(containsString("hx-get=\"" + base + "\" hx-trigger=\"every 2s\"")));
         awaitIdle(show.id);
+        admin().get(base + "/status").then().statusCode(200).header("HX-Trigger", "test-done")
+                .body(containsString("id=\"test-status\"")).body(not(containsString("every 2s")));
         admin().get(base).then().statusCode(200).body(containsString("First story"));
 
-        admin().header("HX-Request", "true").formParam("mode", "draft").formParam("items", "session").post(base + "/prompts").then().statusCode(200);
+        admin().header("HX-Request", "true").formParam("mode", "production").formParam("items", "session").post(base + "/prompts").then().statusCode(200);
         awaitIdle(show.id);
-        admin().get(base).then().statusCode(200).body(containsString("Test episode")).body(containsString("data-voice-part"));
+        admin().get(base).then().statusCode(200).body(containsString("Test episode")).body(containsString("data-voice-part"))
+                .body(containsString("<option value=\"production\" selected>"))
+                .body(containsString("<option value=\"session\"  selected>"));
 
-        admin().header("HX-Request", "true").formParam("text", "Ciao a tutti.").post(base + "/voice").then().statusCode(200);
+        admin().header("HX-Request", "true").formParam("text", "Ciao a tutti.").formParam("lengthScale", "1.15").post(base + "/voice").then().statusCode(200);
         awaitIdle(show.id);
-        admin().get(base).then().statusCode(200).body(containsString("<audio"));
-        admin().get(base + "/voice.wav").then().statusCode(200).contentType("audio/wav");
+        admin().get(base).then().statusCode(200).body(containsString("<audio"))
+                .body(containsString("data-voice-text>Ciao a tutti.</textarea>"))
+                .body(containsString("name=\"lengthScale\" type=\"number\" step=\"0.05\" min=\"0.5\" max=\"2.0\" value=\"1.15\""))
+                .body(containsString("voice.wav?v=1\""));
+        admin().get(base + "/voice.wav").then().statusCode(200).contentType("audio/wav").header("Cache-Control", "no-store");
+
+        admin().header("HX-Request", "true").formParam("text", "Di nuovo.").post(base + "/voice").then().statusCode(200);
+        awaitIdle(show.id);
+        admin().get(base).then().statusCode(200).body(containsString("voice.wav?v=2\""));
     }
 
     @Test
     void validationErrorIsShownInPanel() {
         Show show = TestData.show("tterr");
         admin().header("HX-Request", "true").formParam("text", "a".repeat(1001)).post("/admin/shows/" + show.id + "/test/voice")
-                .then().statusCode(200).body(containsString("the limit is 1000"));
+                .then().statusCode(200).body(containsString("the limit is 1000"))
+                .body(containsString("data-voice-text>" + "a".repeat(1001) + "</textarea>"));
+    }
+
+    @Test
+    void invalidLengthScaleIsKeptInForm() {
+        Show show = TestData.show("ttscale");
+        admin().header("HX-Request", "true").formParam("text", "Ciao.").formParam("lengthScale", "abc").post("/admin/shows/" + show.id + "/test/voice")
+                .then().statusCode(200).body(containsString("Length scale must be a number")).body(containsString("value=\"abc\""));
+    }
+
+    @Test
+    void unknownShowIs404BeforeAnyStepStarts() {
+        TestSessionStore store = io.quarkus.arc.Arc.container().instance(TestSessionStore.class).get();
+        long missing = 987654L;
+        admin().header("HX-Request", "true").post("/admin/shows/" + missing + "/test/sources").then().statusCode(404);
+        admin().header("HX-Request", "true").formParam("text", "Ciao.").post("/admin/shows/" + missing + "/test/voice").then().statusCode(404);
+        admin().get("/admin/shows/" + missing + "/test/status").then().statusCode(404);
+        org.junit.jupiter.api.Assertions.assertTrue(store.find(missing).isEmpty());
+    }
+
+    @Test
+    void nonHttpItemLinksAreNotRendered() {
+        Show show = TestData.show("tthref");
+        TestSessionStore store = io.quarkus.arc.Arc.container().instance(TestSessionStore.class).get();
+        Item item = new Item();
+        item.id = 1L;
+        item.sourceId = 7L;
+        item.title = "Evil item";
+        item.url = "javascript:alert(1)";
+        store.session(show.id).fetched(new TestSession.Fetched(
+                java.util.List.of(new TestSession.SourceResult(7L, "Feed", 1, null)), java.util.List.of(item)));
+        admin().get("/admin/shows/" + show.id + "/test").then().statusCode(200)
+                .body(containsString("Evil item")).body(not(containsString("javascript:")));
     }
 
     @Test

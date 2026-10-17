@@ -2,7 +2,6 @@ package org.roncax.podcaster.tts;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -44,7 +43,11 @@ public class AudioAssembler {
             throw new IllegalStateException(e.getMessage().replaceFirst("^Chunk \\d+", "Chunk " + name), e);
         }
         Path wavFile = outMp3.resolveSibling(outMp3.getFileName() + ".wav");
-        Files.write(wavFile, joined.toWavBytes());
+        Wav format = joined.format();
+        try (OutputStream out = Files.newOutputStream(wavFile)) {
+            out.write(Wav.header(format.sampleRate(), format.channels(), format.bitsPerSample(), joined.pcm().length));
+            out.write(joined.pcm());
+        }
         double duration = joined.durationSeconds();
         try {
             encode(wavFile, outMp3, tags);

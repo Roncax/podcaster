@@ -22,10 +22,14 @@ class PerShowPromptsMigrationTest {
                 st.execute("insert into prompt_versions(prompt_key, version, body) values ('rank',1,'B1'),('rank',2,'B2'),('rank',3,'B3')");
                 st.execute("insert into prompt_labels(prompt_key, label, version_id) select 'rank','production',id from prompt_versions where version = 2");
                 st.execute("insert into prompt_labels(prompt_key, label, version_id) select 'rank','draft',id from prompt_versions where version = 3");
+                // 'segment': production is already the highest default version, so no extra default is appended.
+                st.execute("insert into prompts(key, description) values ('segment', 's')");
+                st.execute("insert into prompt_versions(prompt_key, version, body) values ('segment',1,'S1')");
+                st.execute("insert into prompt_labels(prompt_key, label, version_id) select 'segment',l,id from prompt_versions, (values ('production'),('draft')) x(l) where prompt_key = 'segment'");
                 st.execute("insert into shows(name, slug, language, voice_id, writer_model, feed_token) values"
                         + " ('A','a','it','v','m','tok-a'), ('B','b','it','v','m','tok-b')");
                 st.execute("insert into show_prompt_overrides(show_id, prompt_key, version_id)"
-                        + " select s.id, 'rank', v.id from shows s, prompt_versions v where s.slug = 'b' and v.version = 3");
+                        + " select s.id, 'rank', v.id from shows s, prompt_versions v where s.slug = 'b' and v.prompt_key = 'rank' and v.version = 3");
                 st.execute("insert into runs(show_id, trigger, stage, status, since) select id,'MANUAL','DONE','DONE',now() from shows where slug='a'");
                 st.execute("insert into episodes(run_id, show_id, prompt_versions) select r.id, r.show_id, '{\"rank\":2}' from runs r");
             }
@@ -33,10 +37,14 @@ class PerShowPromptsMigrationTest {
             Flyway.configure().dataSource(ds).locations("classpath:db/migration").load().migrate();
 
             try (Connection c = ds.getConnection(); Statement st = c.createStatement()) {
-                assertEquals("B2|Forked from default v2", one(st, "select v.body || '|' || v.note from prompt_versions v join shows s on s.id = v.show_id where s.slug = 'a' and v.version = 1"));
-                assertEquals("B3|Forked from default v3", one(st, "select v.body || '|' || v.note from prompt_versions v join shows s on s.id = v.show_id where s.slug = 'b' and v.version = 1"));
-                assertEquals("3", one(st, "select count(*) from prompt_versions where show_id is null"));
-                assertEquals("4", one(st, "select count(*) from prompt_labels l join prompt_versions v on v.id = l.version_id where v.show_id = l.show_id and v.version = 1"));
+                assertEquals("B2|Forked from default v2", one(st, "select v.body || '|' || v.note from prompt_versions v join shows s on s.id = v.show_id where s.slug = 'a' and v.prompt_key = 'rank' and v.version = 1"));
+                assertEquals("B3|Forked from default v3", one(st, "select v.body || '|' || v.note from prompt_versions v join shows s on s.id = v.show_id where s.slug = 'b' and v.prompt_key = 'rank' and v.version = 1"));
+                assertEquals("S1|Forked from default v1", one(st, "select v.body || '|' || v.note from prompt_versions v join shows s on s.id = v.show_id where s.slug = 'a' and v.prompt_key = 'segment'"));
+                // Production (v2) was not the latest default (v3): a default v4 carries the production body.
+                assertEquals("4", one(st, "select count(*) from prompt_versions where show_id is null and prompt_key = 'rank'"));
+                assertEquals("B2|Production at migration (v2)", one(st, "select body || '|' || note from prompt_versions where show_id is null and prompt_key = 'rank' and version = 4"));
+                assertEquals("1", one(st, "select count(*) from prompt_versions where show_id is null and prompt_key = 'segment'"));
+                assertEquals("8", one(st, "select count(*) from prompt_labels l join prompt_versions v on v.id = l.version_id where v.show_id = l.show_id and v.version = 1"));
                 assertEquals("0", one(st, "select count(*) from prompt_labels where show_id is null"));
                 assertNull(one(st, "select to_regclass('public.show_prompt_overrides')::text"));
                 assertEquals("true", one(st, "select prompt_versions_global::text from episodes"));

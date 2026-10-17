@@ -1,0 +1,1 @@
+<div id="test-status" class="text-xs text-muted" {#if running}hx-get="/admin/shows/{showId}/test/status" hx-trigger="every 2s" hx-swap="outerHTML"{/if}>{#if running}Running… results appear when the step finishes.{/if}</div>

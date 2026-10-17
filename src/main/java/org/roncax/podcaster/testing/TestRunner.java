@@ -35,15 +35,15 @@ public class TestRunner {
         TestSession session = store.session(showId);
         if (!session.begin(step)) throw new TestStepBusyException(showId);
         try {
-        executor.submit(() -> {
-            try {
-                work.run(session);
-                session.finish(step, null);
-            } catch (Throwable t) {
-                LOG.infof("Test step %s for show %d failed: %s", step, showId, Exceptions.message(t));
-                session.finish(step, Exceptions.message(t));
-            }
-        });
+            executor.submit(() -> {
+                try {
+                    work.run(session);
+                    session.finish(step, null);
+                } catch (Throwable t) {
+                    LOG.infof("Test step %s for show %d failed: %s", step, showId, Exceptions.message(t));
+                    session.finish(step, Exceptions.message(t));
+                }
+            });
         } catch (RuntimeException e) {
             session.finish(step, Exceptions.message(e));
             throw e;

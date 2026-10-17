@@ -74,7 +74,7 @@ It then appears in the admin UI connector list. For cleaner article text on a sp
 
 ## Admin UI
 
-`http://<server>:8080/admin` (log in with `PODCASTER_API_KEY`): dashboard of shows and runs, live run progress, sources per show (RSS, Reddit), episodes with a chapter player and per-story sources, per-show prompt versions with diff and editor, default prompts, and a Test tab, and read-only settings. Assets (Tailwind, fonts, htmx, CodeMirror) are bundled by the Quarkus Web Bundler at build time: no Node and no CDN, so it works offline on your LAN.
+`http://<server>:8080/admin` (log in with `PODCASTER_API_KEY`): dashboard of shows and runs, live run progress, sources per show (RSS, Reddit), episodes with a chapter player and per-story sources, per-show prompt versions with diff and editor, default prompts, a Test tab, and read-only settings. Assets (Tailwind, fonts, htmx, CodeMirror) are bundled by the Quarkus Web Bundler at build time: no Node and no CDN, so it works offline on your LAN.
 
 ## Database UI
 
@@ -98,6 +98,15 @@ Pushes to `main` (and `v*` tags) build `ghcr.io/roncax/podcaster` and `ghcr.io/r
    ```
 3. Container Manager → **Project → Create**, path `/volume1/docker/podcaster`, use the existing `docker-compose.yml`.
 4. To update: `cd /volume1/docker/podcaster && sudo docker compose pull && sudo docker compose up -d` (or stop the project, pull the new images under **Image**, and start it again).
+
+**Release note: per-show prompts (migration V6) has no rollback.** It converts the prompts into one copy per show and drops the old per-show pins. Before deploying it, dump the database:
+
+```bash
+cd /volume1/docker/podcaster
+sudo docker compose exec -T postgres pg_dump -U podcaster -Fc podcaster > podcaster-before-v6.dump
+```
+
+Rolling back means restoring that dump (`pg_restore --clean`) together with the previous image: an older image will not start against the migrated database.
 
 ### Public feed (DSM reverse proxy + Caddy)
 

@@ -64,8 +64,14 @@ public class TestResource {
     @GET
     @Path("/voice.wav")
     @Produces("audio/wav")
-    public byte[] clip(@RestPath long id) {
-        return store.find(id).map(TestSession::clip).map(TestSession.Clip::wav).orElseThrow(NotFoundException::new);
+    public Response clip(@RestPath long id) {
+        return wav(store, id);
+    }
+
+    /** The last clip, never cached (each new clip replaces it at the same URL). */
+    public static Response wav(TestSessionStore store, long id) {
+        byte[] wav = store.find(id).map(TestSession::clip).map(TestSession.Clip::wav).orElseThrow(NotFoundException::new);
+        return Response.ok(wav, "audio/wav").header("Cache-Control", "no-store").build();
     }
 
     static <E extends Enum<E>> E parse(Class<E> type, String value, E fallback, String field) {
@@ -79,7 +85,7 @@ public class TestResource {
 
     static String audioUrl(long id) { return "/api/shows/" + id + "/test/voice.wav"; }
 
-    static void requireShow(long id) {
+    public static void requireShow(long id) {
         if (QuarkusTransaction.requiringNew().call(() -> Show.findById(id)) == null) throw new NotFoundException();
     }
 }

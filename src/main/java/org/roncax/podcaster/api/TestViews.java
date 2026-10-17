@@ -12,7 +12,8 @@ public final class TestViews {
 
     public record StepView(String status, String error) {}
     public record ItemView(long id, long sourceId, String title, String url, Instant publishedAt, boolean hasFullText, int textLength) {}
-    public record ClipView(double durationSeconds, double wordsPerMinute, String voiceId, double lengthScale, String audioUrl) {}
+    /** {@code seq} increases with every new clip; append it to {@code audioUrl} to bypass caches. */
+    public record ClipView(double durationSeconds, double wordsPerMinute, String voiceId, double lengthScale, String audioUrl, long seq) {}
     /** {@code steps} is keyed by step name (SOURCES, PROMPTS, VOICE) so JSON and Qute can both look steps up by string. */
     public record Session(Map<String, StepView> steps, List<TestSession.SourceResult> sources, List<ItemView> items,
                           PromptDryRun.Result dryRun, ClipView clip) {}
@@ -29,7 +30,8 @@ public final class TestViews {
                         i.bestText() == null ? 0 : i.bestText().length()))
                 .toList();
         TestSession.Clip c = s.clip();
-        ClipView clip = c == null ? null : new ClipView(round(c.durationSeconds()), Math.round(c.wordsPerMinute()), c.voiceId(), c.lengthScale(), audioUrl);
+        ClipView clip = c == null ? null : new ClipView(round(c.durationSeconds()), Math.round(c.wordsPerMinute()), c.voiceId(), c.lengthScale(), audioUrl,
+                s.clipSeq());
         return new Session(steps, f == null ? List.of() : f.sources(), items, s.dryRun(), clip);
     }
 
