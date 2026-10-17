@@ -38,4 +38,9 @@ public class ApiExceptionMappers {
     public RestResponse<ErrorBody> unknownModel(org.roncax.podcaster.llm.UnknownModelException e) {
         return RestResponse.status(Response.Status.CONFLICT, new ErrorBody(e.getMessage(), List.of()));
     }
+
+    @ServerExceptionMapper
+    public RestResponse<ErrorBody> testStepBusy(org.roncax.podcaster.testing.TestStepBusyException e) {
+        return RestResponse.status(Response.Status.CONFLICT, new ErrorBody(e.getMessage(), List.of()));
+    }
 }
