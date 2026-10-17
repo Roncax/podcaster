@@ -7,7 +7,6 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
 import org.jboss.resteasy.reactive.RestPath;
-import java.util.List;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.roncax.podcaster.domain.Show;
 import org.roncax.podcaster.prompts.PromptResolver;
@@ -20,6 +19,7 @@ public class TestResource {
     @Inject TestRunner runner;
     @Inject SourceDryRun sources;
     @Inject PromptDryRun prompts;
+    @Inject VoiceDryRun voice;
 
     @GET
     public TestViews.Session get(@RestPath long id) {
@@ -49,6 +49,23 @@ public class TestResource {
         PromptDryRun.Prepared prepared = prompts.prepare(id, mode, items, store.session(id));
         runner.start(id, TestSession.Step.PROMPTS, s -> s.dryRun(prompts.execute(prepared)));
         return RestResponse.status(Response.Status.ACCEPTED, get(id));
+    }
+
+    @POST
+    @Path("/voice")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public RestResponse<TestViews.Session> voice(@RestPath long id, VoiceDryRun.Request request) {
+        requireShow(id);
+        VoiceDryRun.Prepared prepared = voice.prepare(id, request, store.session(id));
+        runner.start(id, TestSession.Step.VOICE, s -> s.clip(voice.execute(prepared)));
+        return RestResponse.status(Response.Status.ACCEPTED, get(id));
+    }
+
+    @GET
+    @Path("/voice.wav")
+    @Produces("audio/wav")
+    public byte[] clip(@RestPath long id) {
+        return store.find(id).map(TestSession::clip).map(TestSession.Clip::wav).orElseThrow(NotFoundException::new);
     }
 
     static <E extends Enum<E>> E parse(Class<E> type, String value, E fallback, String field) {

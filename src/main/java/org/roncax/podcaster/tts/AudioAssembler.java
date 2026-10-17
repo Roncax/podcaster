@@ -32,37 +32,26 @@ public class AudioAssembler {
     public AssembledAudio assemble(List<Path> wavChunks, List<Duration> pausesAfter, List<Integer> partOfChunk, Path outMp3, Mp3Tags tags)
             throws IOException, InterruptedException {
         if (wavChunks.isEmpty()) throw new IllegalArgumentException("No audio chunks to assemble");
-        Wav first = null;
-        ByteArrayOutputStream pcm = new ByteArrayOutputStream();
-        List<Double> partStarts = new java.util.ArrayList<>();
-        for (int i = 0; i < wavChunks.size(); i++) {
-            Wav wav = Wav.parse(Files.readAllBytes(wavChunks.get(i)));
-            if (first == null) {
-                first = wav;
-            } else if (!first.sameFormat(wav)) {
-                throw new IllegalStateException("Chunk " + wavChunks.get(i).getFileName() + " has a different audio format");
-            }
-            if (i == 0 || !partOfChunk.get(i).equals(partOfChunk.get(i - 1))) {
-                partStarts.add((double) pcm.size() / first.bytesPerSecond());
-            }
-            pcm.writeBytes(wav.pcm());
-            long silence = Math.round(pausesAfter.get(i).toMillis() / 1000.0 * first.bytesPerSecond());
-            silence -= silence % first.blockAlign();
-            pcm.writeBytes(new byte[(int) silence]);
+        List<byte[]> wavs = new java.util.ArrayList<>();
+        for (Path chunk : wavChunks) wavs.add(Files.readAllBytes(chunk));
+        WavConcat.Joined joined;
+        try {
+            joined = WavConcat.concat(wavs, pausesAfter, partOfChunk);
+        } catch (IllegalStateException e) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("^Chunk (\\d+)").matcher(String.valueOf(e.getMessage()));
+            if (!m.find()) throw e;
+            String name = wavChunks.get(Integer.parseInt(m.group(1))).getFileName().toString();
+            throw new IllegalStateException(e.getMessage().replaceFirst("^Chunk \\d+", "Chunk " + name), e);
         }
-        byte[] data = pcm.toByteArray();
         Path wavFile = outMp3.resolveSibling(outMp3.getFileName() + ".wav");
-        try (OutputStream out = Files.newOutputStream(wavFile)) {
-            out.write(Wav.header(first.sampleRate(), first.channels(), first.bitsPerSample(), data.length));
-            out.write(data);
-        }
-        double duration = (double) data.length / first.bytesPerSecond();
+        Files.write(wavFile, joined.toWavBytes());
+        double duration = joined.durationSeconds();
         try {
             encode(wavFile, outMp3, tags);
         } finally {
             Files.deleteIfExists(wavFile);
         }
-        return new AssembledAudio(outMp3, duration, Files.size(outMp3), List.copyOf(partStarts));
+        return new AssembledAudio(outMp3, duration, Files.size(outMp3), joined.partStarts());
     }
 
     private void encode(Path wav, Path mp3, Mp3Tags tags) throws IOException, InterruptedException {
