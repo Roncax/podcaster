@@ -17,6 +17,7 @@ import org.jboss.resteasy.reactive.RestHeader;
 import org.jboss.resteasy.reactive.RestPath;
 import org.jboss.resteasy.reactive.RestQuery;
 import org.roncax.podcaster.admin.AdminViews.*;
+import org.roncax.podcaster.admin.PromptAdminViews.ShowPromptRow;
 import org.roncax.podcaster.api.*;
 import org.roncax.podcaster.domain.*;
 import org.roncax.podcaster.generation.Prompts;
@@ -24,13 +25,16 @@ import org.roncax.podcaster.ingestion.ConnectorRegistry;
 import org.roncax.podcaster.ingestion.reddit.RedditSourceConnector;
 import org.roncax.podcaster.ingestion.RssSourceConnector;
 import org.roncax.podcaster.llm.ChatModelRegistry;
+import org.roncax.podcaster.prompts.PromptKey;
+import org.roncax.podcaster.prompts.PromptLabel;
+import org.roncax.podcaster.prompts.PromptRegistry;
 import org.roncax.podcaster.runs.RunAlreadyActiveException;
 import org.roncax.podcaster.runs.RunLauncher;
 
 @Path("/admin")
 @Produces(MediaType.TEXT_HTML)
 public class ShowPages {
-    static final Set<String> TABS = Set.of("overview", "sources", "episodes", "settings");
+    static final Set<String> TABS = Set.of("overview", "sources", "episodes", "settings", "prompts");
 
     @CheckedTemplate
     static class Templates {
@@ -39,7 +43,7 @@ public class ShowPages {
                                               List<EpisodeLink> episodes, List<RunRow> runs, List<SourceRow> sources,
                                               List<String> sourceErrors, ShowForm form, String formAction, List<String> errors,
                                               Set<String> models, Set<String> voices, Set<String> connectors,
-                                              String cronText);
+                                              String cronText, List<ShowPromptRow> prompts);
         static native TemplateInstance live(long showId, LiveRun live);
         static native TemplateInstance sourceTest(SourceTestResult result);
     }
@@ -49,6 +53,7 @@ public class ShowPages {
     @Inject ChatModelRegistry models;
     @Inject ConnectorRegistry connectors;
     @Inject AdminSupport support;
+    @Inject PromptRegistry prompts;
 
     @GET
     @Path("/shows")
@@ -208,7 +213,14 @@ public class ShowPages {
                 }).toList();
         return Templates.detail(show, t, chips, support.liveRun(show.id), episodes, runs, sources, sourceErrors, form,
                 "/admin/shows/" + show.id, errors, models.availableNames(), support.voices(), connectors.types(),
-                AdminSupport.cronText(show.cron));
+                AdminSupport.cronText(show.cron), promptRows(show.id));
+    }
+
+    private List<ShowPromptRow> promptRows(long showId) {
+        return Arrays.stream(PromptKey.values()).map(k -> {
+            Map<PromptLabel, Integer> labels = prompts.labels(showId, k);
+            return new ShowPromptRow(k.dbKey(), k.description(), labels.get(PromptLabel.PRODUCTION), labels.get(PromptLabel.DRAFT));
+        }).toList();
     }
 
     private static Show find(long id) {

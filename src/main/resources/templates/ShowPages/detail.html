@@ -17,6 +17,7 @@
   <a role="tab" href="?tab=sources" aria-selected="{#if tab == 'sources'}true{#else}false{/if}" class="tab {#if tab == 'sources'}tab-active{/if}">Sources</a>
   <a role="tab" href="?tab=episodes" aria-selected="{#if tab == 'episodes'}true{#else}false{/if}" class="tab {#if tab == 'episodes'}tab-active{/if}">Episodes</a>
   <a role="tab" href="?tab=settings" aria-selected="{#if tab == 'settings'}true{#else}false{/if}" class="tab {#if tab == 'settings'}tab-active{/if}">Settings</a>
+  <a role="tab" href="?tab=prompts" aria-selected="{#if tab == 'prompts'}true{#else}false{/if}" class="tab {#if tab == 'prompts'}tab-active{/if}">Prompts</a>
 </div>
 
 {#if tab == 'overview'}
@@ -102,6 +103,22 @@
     </li>
     {#else}<li class="text-sm text-muted">No episodes yet.</li>{/for}
   </ul>
+</section>
+{/if}
+
+{#if tab == 'prompts'}
+<section class="card">
+  <h2 class="m-0 text-base font-semibold">Prompts</h2>
+  <p class="m-0 text-sm text-muted">This show's own prompts. Runs use <strong>production</strong>; the Test tab can use <strong>draft</strong>.</p>
+  <table class="w-full border-collapse text-sm"><tbody>
+    {#for p in prompts}
+    <tr class="border-t border-line">
+      <td class="py-2.5"><a href="/admin/shows/{show.id}/prompts/{p.key}" class="link mono">{p.key}</a></td>
+      <td class="py-2.5 text-muted">{p.description}</td>
+      <td class="py-2.5">{#badge tone='ok'}production v{p.production}{/badge} {#badge tone='info'}draft v{p.draft}{/badge}</td>
+    </tr>
+    {/for}
+  </tbody></table>
 </section>
 {/if}
 

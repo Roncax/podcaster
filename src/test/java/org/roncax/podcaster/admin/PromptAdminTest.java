@@ -96,4 +96,33 @@ class PromptAdminTest {
                 .then().statusCode(303);
         assertEquals(2, registry.latestDefault(PromptKey.JSON_REPAIR).version);
     }
+
+    @Test
+    void showPromptsTabListsKeys() {
+        Show show = TestData.show("tabp");
+        admin().get("/admin/shows/" + show.id + "?tab=prompts").then().statusCode(200)
+                .body(containsString("/admin/shows/" + show.id + "/prompts/rank")).body(containsString("production v1"));
+    }
+
+    @Test
+    void showPromptCreatePromoteAndReset() {
+        Show show = TestData.show("pp");
+        String base = "/admin/shows/" + show.id + "/prompts/json_repair";
+        String location = admin().formParam("body", REPAIR_V2).formParam("note", "shorter")
+                .post(base + "/versions").then().statusCode(303).extract().header("Location");
+        assertTrue(location.endsWith(base + "?v=2"), location);
+        admin().get(base + "?v=2").then().statusCode(200).body(containsString("shorter")).body(containsString("diff-add"))
+                .body(containsString("Promote")).body(containsString("Reset to default"));
+        admin().formParam("version", "2").post(base + "/labels/production").then().statusCode(303);
+        assertEquals(2, registry.labels(show.id, PromptKey.JSON_REPAIR).get(PromptLabel.PRODUCTION));
+        admin().post(base + "/reset").then().statusCode(303);
+        assertEquals(3, registry.labels(show.id, PromptKey.JSON_REPAIR).get(PromptLabel.DRAFT));
+    }
+
+    @Test
+    void invalidShowPromptKeepsText() {
+        Show show = TestData.show("ppbad");
+        admin().formParam("body", "no placeholders").post("/admin/shows/" + show.id + "/prompts/json_repair/versions")
+                .then().statusCode(200).body(containsString("Missing required variable")).body(containsString("no placeholders"));
+    }
 }

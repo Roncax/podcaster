@@ -107,4 +107,15 @@ class EpisodePagesTest {
         assertFalse(html.toLowerCase().contains("href=\"javascript:"), html);
         assertTrue(html.contains("Storia"));
     }
+
+    @Test
+    void legacyEpisodeShowsGlobalLineageNote() {
+        Show show = TestData.show("ep-global");
+        Episode e = episode(show, "Episodio globale", null, null);
+        QuarkusTransaction.requiringNew().run(() -> {
+            Episode fresh = Episode.<Episode>findById(e.id);
+            fresh.promptVersionsGlobal = true;
+        });
+        admin().get("/admin/episodes/" + e.id).then().statusCode(200).body(containsString("global registry"));
+    }
 }
