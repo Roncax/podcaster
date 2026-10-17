@@ -30,13 +30,24 @@ Each Show picks a writer model and optionally a cheaper ranker model by slot nam
 
 ## Prompts
 
-Every prompt sent to the LLM (`rank`, `segment`, `framing`, `json_repair`) lives in the database as immutable versions, editable at `/admin/prompts` or via `/api/prompts`.
+Every prompt sent to the LLM (`rank`, `segment`, `framing`, `json_repair`) is stored in the database as immutable versions.
 
-- Saving creates a new version labelled **draft**. Runs use **production**; promoting a version (or an older one, to roll back) takes effect on the next run, no restart.
-- **Dry-run** renders a full script for a show with the draft prompts without publishing anything.
-- A show can pin a specific version of any prompt (show page → Prompt overrides).
+- Every show owns its prompts (`rank`, `segment`, `framing`, `json_repair`) as immutable versions with `production` (used by runs) and `draft` labels: show page → Prompts, or `/api/shows/{id}/prompts`.
+- New shows copy the **default prompts** (`/admin/prompts`, `/api/prompts`). Editing a default never changes existing shows; use **Reset to default** on a show's prompt to pull it in as a draft.
 - Templates support plain variables (`{variable}`) and `{#if focus}…{#else}…{/if}` only: no property/method access, loops, includes or namespaces. Allowed variables are listed per prompt; `{contract}` (required in `rank` and `framing`) inserts the JSON format the app parses. Invalid templates are rejected on save.
 - Each episode records the prompt versions that produced it (`promptVersions` in `/api/episodes/{id}`).
+
+## Test tab
+
+The show page → Test tab dry-runs:
+
+- (1) fetching all sources
+- (2) rank/outline/script with draft or production prompts on the fetched or unused DB items
+- (3) a clip of up to 1,000 characters in the show's voice or another one
+
+Nothing is stored, and results live in memory for 30 minutes.
+
+API: `/api/shows/{id}/test` (`GET`, `POST /sources`, `POST /prompts {mode, items}`, `POST /voice {text|part, voiceId?, lengthScale?}`, `GET /voice.wav`)
 
 ## Voices
 
@@ -63,7 +74,7 @@ It then appears in the admin UI connector list. For cleaner article text on a sp
 
 ## Admin UI
 
-`http://<server>:8080/admin` (log in with `PODCASTER_API_KEY`): dashboard of shows and runs, live run progress, sources per show (RSS, Reddit), episodes with a chapter player and per-story sources, prompt versions with diff, editor and dry-run, and read-only settings. Assets (Tailwind, fonts, htmx, CodeMirror) are bundled by the Quarkus Web Bundler at build time: no Node and no CDN, so it works offline on your LAN.
+`http://<server>:8080/admin` (log in with `PODCASTER_API_KEY`): dashboard of shows and runs, live run progress, sources per show (RSS, Reddit), episodes with a chapter player and per-story sources, per-show prompt versions with diff and editor, default prompts, and a Test tab, and read-only settings. Assets (Tailwind, fonts, htmx, CodeMirror) are bundled by the Quarkus Web Bundler at build time: no Node and no CDN, so it works offline on your LAN.
 
 ## Database UI
 
