@@ -17,6 +17,9 @@ public class WireMockResource implements QuarkusTestResourceLifecycleManager {
         installDefaults(server);
         return Map.of(
                 "podcaster.tts.piper-url", server.baseUrl(),
+                "podcaster.tts.sibilia.url", server.baseUrl() + "/sibilia",
+                "podcaster.tts.sibilia.key", "wk-test-key",
+                "podcaster.tts.sibilia.secret", "ws-test-secret",
                 "podcaster.telegram.api-url", server.baseUrl(),
                 "podcaster.reddit.base-url", server.baseUrl());
     }
@@ -26,6 +29,9 @@ public class WireMockResource implements QuarkusTestResourceLifecycleManager {
         server.stubFor(get("/voices").willReturn(okJson("{\"it_IT-paola-medium\":{},\"en_US-lessac-medium\":{}}")));
         server.stubFor(post("/synthesize").willReturn(aResponse().withStatus(200)
                 .withHeader("Content-Type", "audio/wav").withBody(TestAudio.sineWav(0.5))));
+        server.stubFor(get("/sibilia/voices").willReturn(okJson("{\"sibilia\":{}}")));
+        server.stubFor(post("/sibilia/synthesize").willReturn(aResponse().withStatus(200)
+                .withHeader("Content-Type", "audio/wav").withBody(TestAudio.sineWav(0.5, 24000))));
         server.stubFor(post("/bottest-token/sendMessage").willReturn(okJson("{\"ok\":true}")));
     }
 

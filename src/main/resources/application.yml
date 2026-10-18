@@ -31,6 +31,13 @@ podcaster:
     attempts: 3
     retry-delay: 2s
     request-timeout: 2m   # per /synthesize call; PODCASTER_TTS_REQUEST_TIMEOUT=5m on slow CPUs
+    sibilia:                # Sibilia-TTS on Modal (cloud/sibilia); empty url = disabled
+      url: ${PODCASTER_SIBILIA_URL:}
+      key: ${PODCASTER_SIBILIA_KEY:}
+      secret: ${PODCASTER_SIBILIA_SECRET:}
+      chunk-chars: 300
+      parallelism: 2
+      request-timeout: 5m
   runs:
     workers: 2
   telegram:

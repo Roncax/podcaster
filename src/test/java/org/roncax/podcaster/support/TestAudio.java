@@ -11,12 +11,17 @@ public final class TestAudio {
 
     /** 16-bit mono PCM WAV with a 440 Hz tone. */
     public static byte[] sineWav(double seconds) {
-        int samples = (int) Math.round(seconds * SAMPLE_RATE);
+        return sineWav(seconds, SAMPLE_RATE);
+    }
+
+    /** Same tone at another sample rate (Sibilia returns 24 kHz). */
+    public static byte[] sineWav(double seconds, int sampleRate) {
+        int samples = (int) Math.round(seconds * sampleRate);
         ByteBuffer pcm = ByteBuffer.allocate(samples * 2).order(ByteOrder.LITTLE_ENDIAN);
         for (int i = 0; i < samples; i++) {
-            pcm.putShort((short) (Math.sin(2 * Math.PI * 440 * i / SAMPLE_RATE) * 8000));
+            pcm.putShort((short) (Math.sin(2 * Math.PI * 440 * i / sampleRate) * 8000));
         }
-        return wav(pcm.array(), SAMPLE_RATE, 1, 16);
+        return wav(pcm.array(), sampleRate, 1, 16);
     }
 
     public static byte[] wav(byte[] pcm, int sampleRate, int channels, int bits) {

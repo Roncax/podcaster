@@ -2,8 +2,6 @@ package org.roncax.podcaster.tts;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -14,40 +12,48 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import org.roncax.podcaster.config.PodcasterConfig;
 import org.roncax.podcaster.util.Retries;
 import org.roncax.podcaster.util.RetryableException;
 
-@ApplicationScoped
-public class PiperHttpTtsEngine implements TtsEngine {
+/**
+ * Client for a Piper-shaped TTS server ({@code GET /voices}, {@code POST /synthesize} → WAV).
+ * Used for local Piper and for the Sibilia service on Modal, which adds auth headers and may answer a slow
+ * call with a 303 to its result URL (followed as a GET).
+ */
+public class HttpTtsEngine {
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    private final HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
+    private final String name;
     private final String baseUrl;
+    private final Map<String, String> headers;
     private final int attempts;
     private final Duration retryDelay;
     private final Duration requestTimeout;
+    private final Duration voicesTimeout;
 
-    @Inject
-    public PiperHttpTtsEngine(PodcasterConfig config) {
-        this(config.tts().piperUrl(), config.tts().attempts(), config.tts().retryDelay(), config.tts().requestTimeout());
-    }
-
-    public PiperHttpTtsEngine(String baseUrl, int attempts, Duration retryDelay) {
-        this(baseUrl, attempts, retryDelay, Duration.ofMinutes(2));
-    }
-
-    public PiperHttpTtsEngine(String baseUrl, int attempts, Duration retryDelay, Duration requestTimeout) {
+    public HttpTtsEngine(String name, String baseUrl, Map<String, String> headers, int attempts, Duration retryDelay,
+                         Duration requestTimeout, Duration voicesTimeout) {
+        this.name = name;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        this.headers = Map.copyOf(headers);
         this.attempts = attempts;
         this.retryDelay = retryDelay;
         this.requestTimeout = requestTimeout;
+        this.voicesTimeout = voicesTimeout;
     }
 
-    @Override
+    public String name() { return name; }
+
+    /** Host only, safe to show in the admin (never the headers). */
+    public String host() { return URI.create(baseUrl).getHost(); }
+
     public byte[] synthesize(String text, VoiceConfig voice) throws Exception {
         String body = MAPPER.writeValueAsString(Map.of(
                 "text", text, "voice", voice.voiceId(), "length_scale", voice.lengthScale()));
-        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/synthesize"))
+        HttpRequest request = withHeaders(HttpRequest.newBuilder(URI.create(baseUrl + "/synthesize")))
                 .timeout(requestTimeout)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body))
@@ -55,31 +61,41 @@ public class PiperHttpTtsEngine implements TtsEngine {
         return Retries.withBackoff(attempts, retryDelay, () -> {
             HttpResponse<byte[]> response = send(request);
             int status = response.statusCode();
-            if (status >= 500) throw new RetryableException("Piper returned HTTP " + status);
-            if (status != 200) throw new IllegalStateException("Piper returned HTTP " + status + ": " + preview(response.body()));
+            checkCredentials(status);
+            if (status >= 500 || status == 429) throw new RetryableException(name + " returned HTTP " + status);
+            if (status != 200) throw new IllegalStateException(name + " returned HTTP " + status + ": " + preview(response.body()));
             if (!Wav.looksLikeWav(response.body())) {
-                throw new IllegalStateException("Piper returned a non-WAV response (" + response.body().length + " bytes): " + preview(response.body()));
+                throw new IllegalStateException(name + " returned a non-WAV response (" + response.body().length + " bytes): " + preview(response.body()));
             }
             return response.body();
         });
     }
 
-    @Override
     public Set<String> voices() throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl + "/voices")).timeout(Duration.ofSeconds(10)).GET().build();
+        HttpRequest request = withHeaders(HttpRequest.newBuilder(URI.create(baseUrl + "/voices"))).timeout(voicesTimeout).GET().build();
         HttpResponse<byte[]> response = send(request);
-        if (response.statusCode() != 200) throw new IllegalStateException("Piper /voices returned HTTP " + response.statusCode());
+        checkCredentials(response.statusCode());
+        if (response.statusCode() != 200) throw new IllegalStateException(name + " /voices returned HTTP " + response.statusCode());
         JsonNode node = MAPPER.readTree(response.body());
         Set<String> voices = new TreeSet<>();
         node.fieldNames().forEachRemaining(voices::add);
         return voices;
     }
 
+    private HttpRequest.Builder withHeaders(HttpRequest.Builder builder) {
+        headers.forEach(builder::header);
+        return builder;
+    }
+
+    private void checkCredentials(int status) {
+        if (status == 401 || status == 403) throw new IllegalStateException(name + " rejected the credentials (HTTP " + status + ")");
+    }
+
     private HttpResponse<byte[]> send(HttpRequest request) throws InterruptedException {
         try {
             return client.send(request, HttpResponse.BodyHandlers.ofByteArray());
         } catch (IOException e) {
-            throw new RetryableException("Piper unreachable at " + baseUrl + ": " + e.getMessage(), e);
+            throw new RetryableException(name + " unreachable at " + baseUrl + ": " + e.getMessage(), e);
         }
     }
 

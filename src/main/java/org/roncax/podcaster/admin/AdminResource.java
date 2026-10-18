@@ -27,13 +27,14 @@ public class AdminResource {
         static native TemplateInstance login(String error);
         static native TemplateInstance dashboard(List<ShowCard> shows, List<RunRow> runs, List<Attention> attention);
         static native TemplateInstance settings(Set<String> models, Set<String> voices, Set<String> connectors,
-                                                boolean telegram, String baseUrl, String version);
+                                                boolean telegram, String baseUrl, String version, String sibilia);
     }
 
     @Inject PodcasterConfig config;
     @Inject ChatModelRegistry models;
     @Inject ConnectorRegistry connectors;
     @Inject AdminSupport support;
+    @Inject org.roncax.podcaster.tts.RoutingTtsEngine tts;
 
     @GET
     public TemplateInstance dashboard() {
@@ -52,7 +53,8 @@ public class AdminResource {
         boolean telegram = config.telegram().botToken().isPresent() && config.telegram().chatId().isPresent();
         String version = org.eclipse.microprofile.config.ConfigProvider.getConfig()
                 .getOptionalValue("quarkus.application.version", String.class).orElse("dev");
-        return Templates.settings(models.availableNames(), support.voices(), connectors.types(), telegram, config.baseUrl(), version);
+        return Templates.settings(models.availableNames(), support.voices(), connectors.types(), telegram, config.baseUrl(), version,
+                tts.sibiliaStatus());
     }
 
     @GET

@@ -48,11 +48,13 @@ public class TtsStage implements Stage {
         Path dir = workDir(config, run.id);
         Files.createDirectories(dir);
         PodcasterConfig.Tts cfg = config.tts();
-        List<TtsChunk> chunks = ScriptChunker.chunk(episode.scriptParts, cfg.chunkChars(), cfg.chunkPause(), cfg.segmentPause());
+        TtsLimits limits = tts.limits(show.voiceId);
+        resetChunksIfVoiceChanged(dir, show.voiceId + "|" + limits.chunkChars());
+        List<TtsChunk> chunks = ScriptChunker.chunk(episode.scriptParts, limits.chunkChars(), cfg.chunkPause(), cfg.segmentPause());
         VoiceConfig voice = new VoiceConfig(show.voiceId, show.lengthScale);
 
         List<Path> files = new ArrayList<>();
-        ExecutorService pool = Executors.newFixedThreadPool(Math.max(1, cfg.parallelism()));
+        ExecutorService pool = Executors.newFixedThreadPool(Math.max(1, limits.parallelism()));
         try {
             List<Future<Path>> futures = new ArrayList<>();
             java.util.concurrent.atomic.AtomicInteger synthesized = new java.util.concurrent.atomic.AtomicInteger();
@@ -98,6 +100,20 @@ public class TtsStage implements Stage {
         Files.write(tmp, wav);
         Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         return file;
+    }
+
+    /**
+     * Chunks from an earlier attempt are reused on retry, but only if they were made by the same voice and chunk size:
+     * otherwise their indexes and audio format (Piper 22.05 kHz vs Sibilia 24 kHz) would not line up.
+     */
+    static void resetChunksIfVoiceChanged(Path dir, String marker) throws java.io.IOException {
+        Path file = dir.resolve("voice.txt");
+        if (Files.exists(file) && !Files.readString(file).equals(marker)) {
+            try (var chunks = Files.newDirectoryStream(dir, "chunk-*")) {
+                for (Path chunk : chunks) Files.delete(chunk);
+            }
+        }
+        Files.writeString(file, marker);
     }
 
     /** Intro, one chapter per outline segment, outro; starts come from the assembled audio. */

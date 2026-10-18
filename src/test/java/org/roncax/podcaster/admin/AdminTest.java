@@ -95,4 +95,31 @@ class AdminTest {
         org.junit.jupiter.api.Assertions.assertTrue(html.contains(">Disabled<"), html);
         org.junit.jupiter.api.Assertions.assertFalse(html.toLowerCase().contains("at 07:00"), html);
     }
+
+    @Test
+    void settingsShowsSibiliaHostButNeverSecrets() {
+        admin().get("/admin/settings").then().statusCode(200)
+                .body(containsString("Sibilia"))
+                .body(containsString("Connected · localhost"))
+                .body(containsString("Sibilia (cloud GPU)"))
+                .body(not(containsString("wk-test-key")))
+                .body(not(containsString("ws-test-secret")));
+    }
+
+    @Test
+    void settingsReportsUnreachableSibilia() {
+        wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get("/sibilia/voices")
+                .willReturn(com.github.tomakehurst.wiremock.client.WireMock.serverError()));
+        admin().get("/admin/settings").then().statusCode(200)
+                .body(containsString("Unreachable · localhost"))
+                .body(containsString("it_IT-paola-medium"));
+    }
+
+    @Test
+    void showFormGroupsLocalAndCloudVoices() {
+        String html = admin().get("/admin/shows").then().statusCode(200).extract().asString();
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("<optgroup label=\"Piper (local)\">"), html);
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("<optgroup label=\"Sibilia (cloud GPU)\">"), html);
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("<option value=\"sibilia\""), html);
+    }
 }
