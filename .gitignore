@@ -80,3 +80,7 @@ deploy/synology/data/
 
 # Cloud TTS (Sibilia on Modal) local venv
 cloud/sibilia/.venv/
+
+# Python
+__pycache__/
+.pytest_cache/
