@@ -68,6 +68,9 @@ quarkus:
     bundle:
       player: true
       editor: true
+  http:
+    limits:
+      max-form-attribute-size: 1M   # per form field; the 2K default rejects long prompts saved from the admin (413)
   scheduler:
     cron-type: unix
     start-mode: forced
