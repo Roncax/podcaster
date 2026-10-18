@@ -1,4 +1,4 @@
-"""Sibilia-TTS on Modal: a token-protected, Piper-shaped TTS API for Podcaster.
+"""Cloud TTS on Modal (Sibilia-TTS and azzurra-voice): a token-protected, Piper-shaped TTS API for Podcaster.
 
 Deploy:      modal deploy sibilia_app.py           (run from cloud/sibilia)
 Weights:     modal run sibilia_app.py::download
@@ -14,6 +14,7 @@ import modal
 import sibilia_core as core
 
 MODEL_ID = "DeepMount00/Sibilia-TTS"
+AZZURRA_ID = "cartesia/azzurra-voice"  # CC BY-NC-SA 4.0: non-commercial use only
 MODELS_DIR = "/models"
 VOICES_ROOT = "/voices"
 VOICES_DIR = Path(VOICES_ROOT) / "voices"
@@ -22,6 +23,7 @@ TEST_SENTENCE = ("Buongiorno e benvenuti alla rassegna del mattino. Oggi parliam
 
 app = modal.App("podcaster-sibilia")
 models = modal.Volume.from_name("sibilia-models", create_if_missing=True)
+azzurra_models = modal.Volume.from_name("azzurra-models", create_if_missing=True)
 voices = modal.Volume.from_name("sibilia-voices", create_if_missing=True)
 
 web_image = (
@@ -41,20 +43,37 @@ gpu_image = gpu_base.env({"HF_HUB_OFFLINE": "1"}).add_local_python_source("sibil
 download_image = gpu_base.env({"HF_HUB_OFFLINE": "0"}).add_local_python_source("sibilia_core")
 
 
+def _load(worker, model_id: str):
+    import torch
+    from transformers import AutoProcessor, CsmForConditionalGeneration
+
+    worker.torch = torch
+    worker.processor = AutoProcessor.from_pretrained(model_id)
+    worker.model = CsmForConditionalGeneration.from_pretrained(model_id, dtype=torch.bfloat16, device_map="cuda")
+    # transformers 5 skips this tie (tie_word_embeddings=false) although both checkpoints rely on it
+    worker.model.backbone_model.embed_tokens.embed_audio_tokens.weight = worker.model.depth_decoder.model.embed_tokens.weight
+    worker.model.eval()
+
+
+def _generate(worker, text: str, conversation: list[dict]) -> bytes:
+    # BatchFeature.to casts only floating tensors (reference audio) to bf16; token ids stay integers
+    inputs = worker.processor.apply_chat_template(conversation, tokenize=True, return_dict=True).to(
+        device="cuda", dtype=worker.torch.bfloat16)
+    cap = core.max_frames(text)
+    with worker.torch.inference_mode():
+        audio = worker.model.generate(**inputs, output_audio=True, max_new_tokens=cap)
+    samples = audio[0].float().cpu().numpy()
+    if len(samples) >= cap * core.SAMPLE_RATE / 12.5 * 0.98:
+        raise core.GenerationRambled(f"Reached the {cap}-frame cap for {len(text)} characters")
+    return core.wav_bytes(samples)
+
+
 @app.cls(image=gpu_image, gpu="L4", volumes={MODELS_DIR: models, VOICES_ROOT: voices},
          scaledown_window=300, max_containers=2, timeout=600)
 class Sibilia:
     @modal.enter()
     def load(self):
-        import torch
-        from transformers import AutoProcessor, CsmForConditionalGeneration
-
-        self.torch = torch
-        self.processor = AutoProcessor.from_pretrained(MODEL_ID)
-        self.model = CsmForConditionalGeneration.from_pretrained(MODEL_ID, torch_dtype=torch.bfloat16, device_map="cuda")
-        # transformers 5 skips this tie (tie_word_embeddings=false) although the checkpoint relies on it
-        self.model.backbone_model.embed_tokens.embed_audio_tokens.weight = self.model.depth_decoder.model.embed_tokens.weight
-        self.model.eval()
+        _load(self, MODEL_ID)
 
     def _reference(self, voice: str):
         resolved = core.resolve_voice(voice, VOICES_DIR)
@@ -73,22 +92,30 @@ class Sibilia:
     @modal.method()
     def synthesize(self, text: str, voice: str) -> bytes:
         voices.reload()
-        # BatchFeature.to casts only floating tensors (reference audio) to bf16; token ids stay integers
-        inputs = self.processor.apply_chat_template(core.conversation(text, self._reference(voice)),
-                                                    tokenize=True, return_dict=True).to(device="cuda", dtype=self.torch.bfloat16)
-        cap = core.max_frames(text)
-        with self.torch.inference_mode():
-            audio = self.model.generate(**inputs, output_audio=True, max_new_tokens=cap)
-        samples = audio[0].float().cpu().numpy()
-        if len(samples) >= cap * core.SAMPLE_RATE / 12.5 * 0.98:
-            raise core.GenerationRambled(f"Reached the {cap}-frame cap for {len(text)} characters")
-        return core.wav_bytes(samples)
+        return _generate(self, text, core.conversation(text, self._reference(voice)))
 
 
-@app.function(image=web_image, volumes={VOICES_ROOT: voices}, timeout=600)  # as long as the GPU worker
+@app.cls(image=gpu_image, gpu="L4", volumes={MODELS_DIR: azzurra_models},
+         scaledown_window=300, max_containers=2, timeout=600)
+class Azzurra:
+    @modal.enter()
+    def load(self):
+        _load(self, AZZURRA_ID)
+
+    @modal.method()
+    def synthesize(self, text: str, voice: str = core.AZZURRA) -> bytes:
+        return _generate(self, text, core.conversation(text, None, model=core.AZZURRA))
+
+
+def _worker(voice: str):
+    return Azzurra() if core.model_for(voice) == core.AZZURRA else Sibilia()
+
+
+@app.function(image=web_image, volumes={VOICES_ROOT: voices}, timeout=600)  # as long as the GPU workers
 @modal.asgi_app(requires_proxy_auth=True)
 def api():
-    return core.create_web_app(lambda text, voice: Sibilia().synthesize.remote(text, voice), VOICES_DIR, refresh=voices.reload)
+    return core.create_web_app(lambda text, voice: _worker(voice).synthesize.remote(text, voice), VOICES_DIR,
+                               refresh=voices.reload)
 
 
 @app.function(image=download_image, volumes={MODELS_DIR: models}, timeout=1800)
@@ -99,10 +126,19 @@ def download_weights():
     models.commit()
 
 
+@app.function(image=download_image, volumes={MODELS_DIR: azzurra_models}, timeout=1800)
+def download_azzurra_weights():
+    from huggingface_hub import snapshot_download
+
+    snapshot_download(AZZURRA_ID, allow_patterns=["*.json", "*.jinja", "model-0000*.safetensors"])
+    azzurra_models.commit()
+
+
 @app.local_entrypoint()
 def download():
     download_weights.remote()
-    print("Weights stored in the sibilia-models volume")
+    download_azzurra_weights.remote()
+    print("Weights stored in the sibilia-models and azzurra-models volumes")
 
 
 @app.function(image=web_image, volumes={VOICES_ROOT: voices})
@@ -136,12 +172,13 @@ def smoke():
 
     import soundfile as sf
 
-    started = time.time()
-    Sibilia().synthesize.remote("Prova.", core.BUILT_IN)  # untimed warm-up: container start + model load
-    print(f"cold start + first call: {time.time() - started:.1f}s (paid about once per episode)")
+    for model in (core.BUILT_IN, core.AZZURRA):
+        started = time.time()
+        _worker(model).synthesize.remote("Prova.", model)  # untimed warm-up: container start + model load
+        print(f"{model} cold start + first call: {time.time() - started:.1f}s (paid about once per episode)")
     for voice in _remote_voices():
         started = time.time()
-        wav = Sibilia().synthesize.remote(core.SMOKE_SENTENCE, voice)
+        wav = _worker(voice).synthesize.remote(core.SMOKE_SENTENCE, voice)
         elapsed = time.time() - started
         seconds = sf.info(io.BytesIO(wav)).duration
         Path(f"smoke-{voice}.wav").write_bytes(wav)

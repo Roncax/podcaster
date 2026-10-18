@@ -124,9 +124,9 @@ On a slow CPU (e.g. a Celeron NAS) `-high` voices synthesize about 3× slower th
 
 If the `piper` container dies with `Illegal instruction` (the NAS CPU lacks AVX), run the same image on a Raspberry Pi: `docker run -d -p 5000:5000 -v voices:/voices --restart unless-stopped ghcr.io/roncax/podcaster-piper`, and set `PIPER_URL=http://<pi-ip>:5000` in `.env`.
 
-### Cloud TTS (Sibilia on Modal)
+### Cloud TTS (Sibilia and Azzurra on Modal)
 
-Shows can use **Sibilia-TTS** (an Italian Sesame CSM fine-tune) running on a serverless L4 GPU at [Modal](https://modal.com) instead of Piper. Choose a `sibilia` voice in the show form ("Sibilia (cloud GPU)" group); other shows keep using Piper.
+Shows can use **Sibilia-TTS** (an Italian Sesame CSM fine-tune) running on a serverless L4 GPU at [Modal](https://modal.com) instead of Piper. Choose a `sibilia` voice in the show form ("Cloud GPU" group); other shows keep using Piper.
 
 Setup, once:
 
@@ -136,7 +136,7 @@ Setup, once:
    `PODCASTER_SIBILIA_URL=<the api URL>`, `PODCASTER_SIBILIA_KEY=wk-…`, `PODCASTER_SIBILIA_SECRET=ws-…`
 4. `.venv/bin/modal run sibilia_app.py::smoke` prints speed and the projected monthly cost.
 
-Voices: `sibilia` is the model's built-in voice (stable across chunks). Add reference voices with
+Voices: `sibilia` is the model's built-in voice (stable across chunks), and `azzurra` is the built-in voice of [cartesia/azzurra-voice](https://huggingface.co/cartesia/azzurra-voice), a second Italian CSM model served by the same endpoint. **azzurra-voice is licensed CC BY-NC-SA 4.0: non-commercial use only**, so don't use it on a monetized feed. Each model runs on its own GPU worker, only while a show using it is being synthesized. Add reference voices with
 `modal run sibilia_app.py::add_voice --name anna --wav clip.wav --text "exact transcript"` (3–20 s of clean speech); it saves `anna-test.wav` so you can judge the imitation before selecting `sibilia-anna` in a show.
 
 Notes: the show's speed (`length_scale`) is ignored for Sibilia voices; chunks are 300 characters (`podcaster.tts.sibilia.chunk-chars`); the endpoint rejects requests without the token before starting any container; at most 2 GPU containers run and each stops 5 minutes after its last request.

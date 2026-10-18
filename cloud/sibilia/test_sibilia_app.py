@@ -17,3 +17,10 @@ def decorator_kwargs(name):
 def test_web_front_end_waits_as_long_as_the_gpu_worker():
     # Queued GPU inputs (two shows at once, max_containers=2) must not time out on the web side first
     assert decorator_kwargs("api").get("timeout", 300) >= decorator_kwargs("Sibilia")["timeout"]
+
+
+def test_both_gpu_workers_share_the_cost_caps():
+    for worker in ("Sibilia", "Azzurra"):
+        kw = decorator_kwargs(worker)
+        assert kw["gpu"] == "L4" and kw["max_containers"] == 2 and kw["scaledown_window"] == 300
+        assert decorator_kwargs("api").get("timeout", 300) >= kw["timeout"]
