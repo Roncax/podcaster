@@ -32,8 +32,8 @@ def test_list_voices_has_built_in_and_complete_references_only(tmp_path):
     (voices / "orphan.wav").write_bytes(b"x")  # no transcript: ignored
     (voices / "Bad.wav").write_bytes(b"x")
     (voices / "Bad.txt").write_text("x")      # invalid name: ignored
-    assert set(core.list_voices(voices)) == {"sibilia", "sibilia-anna"}
-    assert core.list_voices(tmp_path / "missing") == {"sibilia": {"kind": "built-in"}}
+    assert set(core.list_voices(voices)) == {"sibilia", "sibilia-anna", "azzurra"}
+    assert core.list_voices(tmp_path / "missing") == {"sibilia": {"kind": "built-in"}, "azzurra": {"kind": "built-in"}}
 
 
 def test_resolve_voice(tmp_path):
@@ -78,7 +78,7 @@ def client(tmp_path):
 
 
 def test_voices_endpoint(client):
-    assert set(client.get("/voices").json()) == {"sibilia", "sibilia-anna"}
+    assert set(client.get("/voices").json()) == {"sibilia", "sibilia-anna", "azzurra"}
 
 
 def test_synthesize_returns_wav_and_ignores_length_scale(client):
@@ -118,3 +118,26 @@ def test_monthly_cost_scales_gpu_time_to_20_minutes_a_day():
     # 30 s of GPU for 30 s of audio = real time: 20 min/day * 30 days * 60 s * $0.000222
     assert round(core.monthly_cost(gpu_seconds=30, audio_seconds=30), 2) == round(20 * 30 * 60 * 0.000222, 2)
     assert core.monthly_cost(gpu_seconds=60, audio_seconds=30) == 2 * core.monthly_cost(gpu_seconds=30, audio_seconds=30)
+
+
+def test_azzurra_is_a_built_in_voice(tmp_path):
+    assert "azzurra" in core.list_voices(tmp_path / "missing")
+    assert core.resolve_voice("azzurra", tmp_path) is None
+    with pytest.raises(core.UnknownVoice):
+        core.resolve_voice("azzurra-anna", tmp_path)  # azzurra cannot take reference clips
+
+
+def test_model_for_voice():
+    assert core.model_for("sibilia") == "sibilia"
+    assert core.model_for("sibilia-anna") == "sibilia"
+    assert core.model_for("azzurra") == "azzurra"
+
+
+def test_azzurra_conversation_uses_its_single_user_turn():
+    assert core.conversation("Ciao.", None, model="azzurra") == [{"role": "user", "content": [{"type": "text", "text": "Ciao."}]}]
+
+
+def test_web_app_accepts_azzurra(client):
+    r = client.post("/synthesize", json={"text": "Ciao.", "voice": "azzurra"})
+    assert r.status_code == 200 and client.calls == [("Ciao.", "azzurra")]
+    assert client.post("/synthesize", json={"text": "Ciao.", "voice": "azzurra-anna"}).status_code == 400

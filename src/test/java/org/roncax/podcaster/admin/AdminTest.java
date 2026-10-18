@@ -101,7 +101,7 @@ class AdminTest {
         admin().get("/admin/settings").then().statusCode(200)
                 .body(containsString("Sibilia"))
                 .body(containsString("Connected · localhost"))
-                .body(containsString("Sibilia (cloud GPU)"))
+                .body(containsString("Cloud GPU"))
                 .body(not(containsString("wk-test-key")))
                 .body(not(containsString("ws-test-secret")));
     }
@@ -119,7 +119,8 @@ class AdminTest {
     void showFormGroupsLocalAndCloudVoices() {
         String html = admin().get("/admin/shows").then().statusCode(200).extract().asString();
         org.junit.jupiter.api.Assertions.assertTrue(html.contains("<optgroup label=\"Piper (local)\">"), html);
-        org.junit.jupiter.api.Assertions.assertTrue(html.contains("<optgroup label=\"Sibilia (cloud GPU)\">"), html);
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("<optgroup label=\"Cloud GPU\">"), html);
         org.junit.jupiter.api.Assertions.assertTrue(html.contains("<option value=\"sibilia\""), html);
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("<option value=\"azzurra\""), html);
     }
 }

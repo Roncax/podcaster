@@ -1,4 +1,4 @@
-"""Pure logic for the Sibilia TTS service: no modal/torch imports, so it is testable locally."""
+"""Pure logic for the cloud TTS service (Sibilia, Azzurra): no modal/torch imports, so it is testable locally."""
 
 import io
 import math
@@ -10,6 +10,7 @@ import numpy as np
 import soundfile as sf
 
 BUILT_IN = "sibilia"
+AZZURRA = "azzurra"  # cartesia/azzurra-voice: one built-in voice, no reference clips (CC BY-NC-SA)
 SAMPLE_RATE = 24000
 MAX_TEXT_CHARS = 2000
 _NAME = re.compile(r"[a-z0-9]+")
@@ -43,8 +44,13 @@ def valid_voice_name(name: str) -> bool:
     return bool(_NAME.fullmatch(name))
 
 
+def model_for(voice: str) -> str:
+    """Which model serves a (valid) voice name."""
+    return AZZURRA if voice == AZZURRA else BUILT_IN
+
+
 def list_voices(voices_dir: Path) -> dict[str, dict]:
-    voices = {BUILT_IN: {"kind": "built-in"}}
+    voices = {BUILT_IN: {"kind": "built-in"}, AZZURRA: {"kind": "built-in"}}
     if voices_dir.is_dir():
         for clip in sorted(voices_dir.glob("*.wav")):
             if valid_voice_name(clip.stem) and clip.with_suffix(".txt").is_file():
@@ -54,7 +60,7 @@ def list_voices(voices_dir: Path) -> dict[str, dict]:
 
 def resolve_voice(voice: str, voices_dir: Path) -> tuple[Path, str] | None:
     """None for the built-in voice, (clip, transcript) for a reference voice."""
-    if voice == BUILT_IN:
+    if voice in (BUILT_IN, AZZURRA):
         return None
     prefix = BUILT_IN + "-"
     name = voice[len(prefix):] if voice.startswith(prefix) else ""
@@ -66,8 +72,13 @@ def resolve_voice(voice: str, voices_dir: Path) -> tuple[Path, str] | None:
     return clip, transcript.read_text(encoding="utf-8").strip()
 
 
-def conversation(text: str, reference: tuple[np.ndarray, str] | None) -> list[dict]:
-    """CSM chat format: an optional context turn (transcript + 24 kHz audio) then the text to speak."""
+def conversation(text: str, reference: tuple[np.ndarray, str] | None, model: str = BUILT_IN) -> list[dict]:
+    """CSM chat format: an optional context turn (transcript + 24 kHz audio) then the text to speak.
+
+    Azzurra's chat template accepts exactly one text-only message with the role "user".
+    """
+    if model == AZZURRA:
+        return [{"role": "user", "content": [{"type": "text", "text": text}]}]
     turns = []
     if reference is not None:
         audio, transcript = reference

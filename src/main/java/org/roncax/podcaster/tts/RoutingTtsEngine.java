@@ -11,7 +11,7 @@ import java.util.TreeSet;
 import org.jboss.logging.Logger;
 import org.roncax.podcaster.config.PodcasterConfig;
 
-/** The application's TTS engine: Sibilia voices go to the Modal service, all others to Piper. */
+/** The application's TTS engine: cloud voices (Sibilia, Azzurra) go to the Modal service, all others to Piper. */
 @ApplicationScoped
 public class RoutingTtsEngine implements TtsEngine {
     private static final Logger LOG = Logger.getLogger(RoutingTtsEngine.class);
@@ -34,14 +34,15 @@ public class RoutingTtsEngine implements TtsEngine {
         this.sibiliaLimits = sibiliaLimits;
     }
 
-    public static boolean isSibilia(String voiceId) {
-        return voiceId != null && (voiceId.equals("sibilia") || voiceId.startsWith("sibilia-"));
+    /** Voices served by the Modal service: Sibilia (built-in or {@code sibilia-<name>} reference voices) and Azzurra. */
+    public static boolean isCloudVoice(String voiceId) {
+        return voiceId != null && (voiceId.equals("sibilia") || voiceId.startsWith("sibilia-") || voiceId.equals("azzurra"));
     }
 
     @Override
     public byte[] synthesize(String text, VoiceConfig voice) throws Exception {
-        if (!isSibilia(voice.voiceId())) return piper.synthesize(text, voice);
-        return sibilia.orElseThrow(() -> new IllegalStateException("Sibilia is not configured (PODCASTER_SIBILIA_URL)"))
+        if (!isCloudVoice(voice.voiceId())) return piper.synthesize(text, voice);
+        return sibilia.orElseThrow(() -> new IllegalStateException("Cloud TTS is not configured (PODCASTER_SIBILIA_URL)"))
                 .synthesize(text, voice);
     }
 
@@ -52,7 +53,7 @@ public class RoutingTtsEngine implements TtsEngine {
             try {
                 voices.addAll(sibilia.get().voices());
             } catch (Exception e) {
-                LOG.warnf("Sibilia voices unavailable: %s", e.getMessage());
+                LOG.warnf("Cloud TTS voices unavailable: %s", e.getMessage());
             }
         }
         return voices;
@@ -60,11 +61,11 @@ public class RoutingTtsEngine implements TtsEngine {
 
     @Override
     public TtsLimits limits(String voiceId) {
-        return isSibilia(voiceId) ? sibiliaLimits : piperLimits;
+        return isCloudVoice(voiceId) ? sibiliaLimits : piperLimits;
     }
 
     /** For the settings page: never includes the credentials. */
-    public String sibiliaStatus() {
+    public String cloudStatus() {
         if (sibilia.isEmpty()) return "Not configured";
         HttpTtsEngine s = sibilia.get();
         try {
@@ -89,7 +90,7 @@ public class RoutingTtsEngine implements TtsEngine {
             headers.put("Modal-Key", s.key().get());
             headers.put("Modal-Secret", s.secret().get());
         }
-        return Optional.of(new HttpTtsEngine("Sibilia", url.get(), headers, tts.attempts(), tts.retryDelay(),
+        return Optional.of(new HttpTtsEngine("Cloud TTS", url.get(), headers, tts.attempts(), tts.retryDelay(),
                 s.requestTimeout(), Duration.ofSeconds(30)));
     }
 }

@@ -38,20 +38,24 @@ class RoutingTtsEngineTest {
     }
 
     @Test
-    void recognisesSibiliaVoices() {
-        assertTrue(RoutingTtsEngine.isSibilia("sibilia"));
-        assertTrue(RoutingTtsEngine.isSibilia("sibilia-anna"));
-        assertFalse(RoutingTtsEngine.isSibilia("sibilian"));
-        assertFalse(RoutingTtsEngine.isSibilia("it_IT-paola-medium"));
-        assertFalse(RoutingTtsEngine.isSibilia(null));
+    void recognisesCloudVoices() {
+        assertTrue(RoutingTtsEngine.isCloudVoice("sibilia"));
+        assertTrue(RoutingTtsEngine.isCloudVoice("sibilia-anna"));
+        assertTrue(RoutingTtsEngine.isCloudVoice("azzurra"));
+        assertFalse(RoutingTtsEngine.isCloudVoice("azzurra-anna"), "azzurra has no reference voices");
+        assertFalse(RoutingTtsEngine.isCloudVoice("sibilian"));
+        assertFalse(RoutingTtsEngine.isCloudVoice("it_IT-paola-medium"));
+        assertFalse(RoutingTtsEngine.isCloudVoice(null));
     }
 
     @Test
     void routesByVoice() throws Exception {
         RoutingTtsEngine router = router(true);
         router.synthesize("ciao", new VoiceConfig("sibilia-anna", 1.0));
+        router.synthesize("ciao", new VoiceConfig("azzurra", 1.0));
         router.synthesize("ciao", new VoiceConfig("it_IT-paola-medium", 1.0));
         wm.verify(1, postRequestedFor(urlEqualTo("/sibilia/synthesize")).withRequestBody(matchingJsonPath("$.voice", equalTo("sibilia-anna"))));
+        wm.verify(1, postRequestedFor(urlEqualTo("/sibilia/synthesize")).withRequestBody(matchingJsonPath("$.voice", equalTo("azzurra"))));
         wm.verify(1, postRequestedFor(urlEqualTo("/piper/synthesize")).withRequestBody(matchingJsonPath("$.voice", equalTo("it_IT-paola-medium"))));
     }
 
@@ -72,7 +76,7 @@ class RoutingTtsEngineTest {
         assertEquals(Set.of("it_IT-paola-medium"), router.voices());
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> router.synthesize("ciao", new VoiceConfig("sibilia", 1.0)));
-        assertEquals("Sibilia is not configured (PODCASTER_SIBILIA_URL)", ex.getMessage());
+        assertEquals("Cloud TTS is not configured (PODCASTER_SIBILIA_URL)", ex.getMessage());
         wm.verify(0, postRequestedFor(urlPathMatching("/.*synthesize")));
     }
 
@@ -80,14 +84,15 @@ class RoutingTtsEngineTest {
     void limitsPerVoice() {
         RoutingTtsEngine router = router(true);
         assertEquals(SIBILIA, router.limits("sibilia"));
+        assertEquals(SIBILIA, router.limits("azzurra"));
         assertEquals(PIPER, router.limits("it_IT-paola-medium"));
     }
 
     @Test
-    void sibiliaStatus() {
-        assertEquals("Not configured", router(false).sibiliaStatus());
-        assertEquals("Connected · localhost", router(true).sibiliaStatus());
+    void cloudStatus() {
+        assertEquals("Not configured", router(false).cloudStatus());
+        assertEquals("Connected · localhost", router(true).cloudStatus());
         wm.stubFor(get("/sibilia/voices").willReturn(serverError()));
-        assertEquals("Unreachable · localhost", router(true).sibiliaStatus());
+        assertEquals("Unreachable · localhost", router(true).cloudStatus());
     }
 }
