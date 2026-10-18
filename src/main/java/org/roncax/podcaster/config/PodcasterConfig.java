@@ -50,6 +50,17 @@ public interface PodcasterConfig {
         Duration retryDelay();
         /** How long one /synthesize call may take; raise it for slow CPUs or heavy (-high) voices. */
         Duration requestTimeout();
+        /** Sibilia-TTS on Modal; disabled while {@code url} is empty. */
+        Sibilia sibilia();
+
+        interface Sibilia {
+            Optional<String> url();
+            Optional<String> key();
+            Optional<String> secret();
+            int chunkChars();
+            int parallelism();
+            Duration requestTimeout();
+        }
     }
 
     interface Runs { int workers(); }

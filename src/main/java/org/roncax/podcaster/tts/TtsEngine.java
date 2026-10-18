@@ -7,4 +7,7 @@ public interface TtsEngine {
     byte[] synthesize(String text, VoiceConfig voice) throws Exception;
 
     Set<String> voices() throws Exception;
+
+    /** Chunk size and parallelism to use for this voice's engine. */
+    TtsLimits limits(String voiceId);
 }

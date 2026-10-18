@@ -100,7 +100,7 @@ public class ShowService {
         try {
             Set<String> voices = tts.voices();
             if (!voices.contains(r.voiceId())) {
-                errors.add("voiceId '" + r.voiceId() + "' is not installed in Piper; available: " + voices);
+                errors.add("voiceId '" + r.voiceId() + "' is not available; available: " + voices);
             }
         } catch (Exception e) {
             LOG.warnf("Could not verify voice, Piper unreachable: %s", e.getMessage());

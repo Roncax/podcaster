@@ -44,9 +44,9 @@ public class VoiceDryRun {
         if (!voice.equals(show.voiceId)) {
             try {
                 Set<String> voices = tts.voices();
-                if (!voices.contains(voice)) errors.add("voiceId '" + voice + "' is not installed in Piper; available: " + voices);
+                if (!voices.contains(voice)) errors.add("voiceId '" + voice + "' is not available; available: " + voices);
             } catch (Exception e) {
-                // Piper unreachable: the step itself will report it
+                // TTS unreachable: the step itself will report it
             }
         }
         if (!errors.isEmpty()) throw new InvalidRequestException(errors);
