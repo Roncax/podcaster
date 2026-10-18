@@ -54,6 +54,14 @@ class PromptAdminTest {
     }
 
     @Test
+    void longPromptSavesFromForm() {
+        String body = "Rispondi in italiano, perché è più naturale. ".repeat(500) + REPAIR_V2; // ~23 kB of form data
+        admin().formParam("body", body).formParam("note", "long").post("/admin/prompts/json_repair/versions")
+                .then().statusCode(303);
+        assertEquals(body, registry.latestDefault(PromptKey.JSON_REPAIR).body);
+    }
+
+    @Test
     void invalidFormShowsErrorsAndKeepsText() {
         admin().formParam("body", "no placeholders").post("/admin/prompts/json_repair/versions").then().statusCode(200)
                 .body(containsString("Missing required variable {error}"))
