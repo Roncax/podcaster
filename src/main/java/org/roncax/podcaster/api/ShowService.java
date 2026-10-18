@@ -100,10 +100,10 @@ public class ShowService {
         CronValidator.validate(r.cron()).ifPresent(errors::add);
         try {
             Set<String> voices = tts.voices();
-            // Sibilia's listing failed (cloud down, token expired): keep a Sibilia voice rather than block every save
-            boolean sibiliaUnlisted = RoutingTtsEngine.isSibilia(r.voiceId()) && voices.stream().noneMatch(RoutingTtsEngine::isSibilia);
-            if (sibiliaUnlisted) {
-                LOG.warnf("Could not verify voice %s: Sibilia voices unavailable", r.voiceId());
+            // The cloud listing failed (Modal down, token expired): keep a cloud voice rather than block every save
+            boolean cloudUnlisted = RoutingTtsEngine.isCloudVoice(r.voiceId()) && voices.stream().noneMatch(RoutingTtsEngine::isCloudVoice);
+            if (cloudUnlisted) {
+                LOG.warnf("Could not verify voice %s: cloud TTS voices unavailable", r.voiceId());
             } else if (!voices.contains(r.voiceId())) {
                 errors.add("voiceId '" + r.voiceId() + "' is not available; available: " + voices);
             }

@@ -11,10 +11,10 @@ public class VoiceExtensions {
     private VoiceExtensions() {}
 
     static List<String> localVoices(Collection<String> voices) {
-        return voices.stream().filter(v -> !RoutingTtsEngine.isSibilia(v)).toList();
+        return voices.stream().filter(v -> !RoutingTtsEngine.isCloudVoice(v)).toList();
     }
 
     static List<String> cloudVoices(Collection<String> voices) {
-        return voices.stream().filter(RoutingTtsEngine::isSibilia).toList();
+        return voices.stream().filter(RoutingTtsEngine::isCloudVoice).toList();
     }
 }

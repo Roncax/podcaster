@@ -27,7 +27,7 @@ public class AdminResource {
         static native TemplateInstance login(String error);
         static native TemplateInstance dashboard(List<ShowCard> shows, List<RunRow> runs, List<Attention> attention);
         static native TemplateInstance settings(Set<String> models, Set<String> voices, Set<String> connectors,
-                                                boolean telegram, String baseUrl, String version, String sibilia);
+                                                boolean telegram, String baseUrl, String version, String cloud);
     }
 
     @Inject PodcasterConfig config;
@@ -54,7 +54,7 @@ public class AdminResource {
         String version = org.eclipse.microprofile.config.ConfigProvider.getConfig()
                 .getOptionalValue("quarkus.application.version", String.class).orElse("dev");
         return Templates.settings(models.availableNames(), support.voices(), connectors.types(), telegram, config.baseUrl(), version,
-                tts.sibiliaStatus());
+                tts.cloudStatus());
     }
 
     @GET
