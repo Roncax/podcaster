@@ -17,7 +17,6 @@ MODEL_ID = "DeepMount00/Sibilia-TTS"
 MODELS_DIR = "/models"
 VOICES_ROOT = "/voices"
 VOICES_DIR = Path(VOICES_ROOT) / "voices"
-L4_DOLLARS_PER_SECOND = 0.000222
 TEST_SENTENCE = ("Buongiorno e benvenuti alla rassegna del mattino. Oggi parliamo di politica, di esteri "
                  "e di una storia curiosa che arriva da Torino.")
 
@@ -84,7 +83,7 @@ class Sibilia:
         return core.wav_bytes(samples)
 
 
-@app.function(image=web_image, volumes={VOICES_ROOT: voices})
+@app.function(image=web_image, volumes={VOICES_ROOT: voices}, timeout=600)  # as long as the GPU worker
 @modal.asgi_app(requires_proxy_auth=True)
 def api():
     return core.create_web_app(lambda text, voice: Sibilia().synthesize.remote(text, voice), VOICES_DIR, refresh=voices.reload)
@@ -135,15 +134,19 @@ def smoke():
 
     import soundfile as sf
 
-    for voice in core.list_voices(Path("/nonexistent")) | {v: {} for v in _remote_voices()}:
+    started = time.time()
+    Sibilia().synthesize.remote("Prova.", core.BUILT_IN)  # untimed warm-up: container start + model load
+    print(f"cold start + first call: {time.time() - started:.1f}s (paid about once per episode)")
+    for voice in _remote_voices():
         started = time.time()
-        wav = Sibilia().synthesize.remote(TEST_SENTENCE, voice)
+        wav = Sibilia().synthesize.remote(core.SMOKE_SENTENCE, voice)
         elapsed = time.time() - started
         seconds = sf.info(io.BytesIO(wav)).duration
         Path(f"smoke-{voice}.wav").write_bytes(wav)
-        monthly = elapsed / seconds * 20 * 60 * 30 * L4_DOLLARS_PER_SECOND
-        print(f"{voice}: {seconds:.1f}s audio in {elapsed:.1f}s wall ({elapsed / seconds:.2f}x real time, "
-              f"includes any cold start) -> ~${monthly:.2f}/month for 20 min/day")
+        print(f"{voice}: {len(core.SMOKE_SENTENCE)} chars -> {seconds:.1f}s audio in {elapsed:.1f}s warm "
+              f"({elapsed / seconds:.2f}x real time) -> ~${core.monthly_cost(elapsed, seconds):.2f}/month for 20 min/day")
+    idle = 300 * core.L4_DOLLARS_PER_SECOND * 30
+    print(f"plus idle time before scale-down: ~${idle:.2f}/month per daily episode (5 min warm after the last chunk)")
 
 
 @app.function(image=web_image, volumes={VOICES_ROOT: voices})

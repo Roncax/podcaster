@@ -108,3 +108,13 @@ def test_rejects_empty_and_overlong_text(client):
 def test_generation_failure_is_500(client):
     r = client.post("/synthesize", json={"text": "boom", "voice": "sibilia"})
     assert r.status_code == 500
+
+
+def test_smoke_sentence_is_a_full_sibilia_chunk():
+    assert 280 <= len(core.SMOKE_SENTENCE) <= 300
+
+
+def test_monthly_cost_scales_gpu_time_to_20_minutes_a_day():
+    # 30 s of GPU for 30 s of audio = real time: 20 min/day * 30 days * 60 s * $0.000222
+    assert round(core.monthly_cost(gpu_seconds=30, audio_seconds=30), 2) == round(20 * 30 * 60 * 0.000222, 2)
+    assert core.monthly_cost(gpu_seconds=60, audio_seconds=30) == 2 * core.monthly_cost(gpu_seconds=30, audio_seconds=30)

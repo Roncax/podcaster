@@ -13,6 +13,11 @@ BUILT_IN = "sibilia"
 SAMPLE_RATE = 24000
 MAX_TEXT_CHARS = 2000
 _NAME = re.compile(r"[a-z0-9]+")
+L4_DOLLARS_PER_SECOND = 0.000222
+# One full Sibilia chunk (podcaster.tts.sibilia.chunk-chars = 300), so smoke timings match real episodes
+SMOKE_SENTENCE = ("Buongiorno e benvenuti alla rassegna del mattino. Ieri sera il governo ha approvato la legge "
+                  "di bilancio, che ora passa all'esame del Parlamento. Le opposizioni parlano di una manovra senza "
+                  "coraggio, mentre la maggioranza rivendica il taglio delle tasse per i redditi medi e bassi.")
 
 
 class UnknownVoice(ValueError):
@@ -26,6 +31,12 @@ class GenerationRambled(RuntimeError):
 def max_frames(text: str) -> int:
     """Mimi runs at 12.5 frames/s; Italian narration is ~14 chars/s; 1.5x headroom plus 4 s."""
     return math.ceil(len(text) / 14 * 12.5 * 1.5) + 50
+
+
+def monthly_cost(gpu_seconds: float, audio_seconds: float, minutes_per_day: float = 20,
+                 dollars_per_second: float = L4_DOLLARS_PER_SECOND) -> float:
+    """GPU cost of minutes_per_day of audio for 30 days at the measured GPU-seconds per audio-second."""
+    return gpu_seconds / audio_seconds * minutes_per_day * 60 * 30 * dollars_per_second
 
 
 def valid_voice_name(name: str) -> bool:
