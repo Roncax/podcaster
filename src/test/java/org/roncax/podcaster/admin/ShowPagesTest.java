@@ -169,4 +169,43 @@ class ShowPagesTest {
         assertTrue(html.contains("<option value=\"gpt\" selected>gpt (not enabled)</option>"), html);
         assertTrue(html.contains("<option value=\"claude\" selected>claude (not enabled)</option>"), html);
     }
+
+    private Show sibiliaShow() {
+        Show show = TestData.show("cloud");
+        QuarkusTransaction.requiringNew().run(() -> Show.<Show>findById(show.id).voiceId = "sibilia");
+        return show;
+    }
+
+    @Test
+    void sibiliaShowKeepsItsVoiceSelectedWhileSibiliaIsDown() {
+        Show show = sibiliaShow();
+        wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get("/sibilia/voices")
+                .willReturn(com.github.tomakehurst.wiremock.client.WireMock.serverError()));
+        String html = admin().get("/admin/shows/" + show.id + "?tab=settings").then().statusCode(200).extract().asString();
+        org.junit.jupiter.api.Assertions.assertTrue(html.contains("<option value=\"sibilia\" selected>sibilia (unavailable)</option>"), html);
+    }
+
+    @Test
+    void sibiliaShowCanBeSavedWhileSibiliaIsDown() {
+        Show show = sibiliaShow();
+        wm.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get("/sibilia/voices")
+                .willReturn(com.github.tomakehurst.wiremock.client.WireMock.serverError()));
+        admin().formParam("name", "Cloud").formParam("slug", show.slug).formParam("language", "it")
+                .formParam("voiceId", "sibilia").formParam("writerModel", "fake").formParam("rankerModel", "")
+                .formParam("lengthScale", "1.0").formParam("targetDurationMinutes", "20").formParam("minItems", "3")
+                .formParam("retainEpisodes", "30").formParam("cron", "0 6 * * *").formParam("enabled", "on")
+                .post("/admin/shows/" + show.id).then().statusCode(303);
+        org.junit.jupiter.api.Assertions.assertEquals("sibilia",
+                QuarkusTransaction.requiringNew().call(() -> Show.<Show>findById(show.id).voiceId));
+    }
+
+    @Test
+    void unknownSibiliaVoiceIsStillRejectedWhenSibiliaIsUp() {
+        Show show = sibiliaShow();
+        admin().formParam("name", "Cloud").formParam("slug", show.slug).formParam("language", "it")
+                .formParam("voiceId", "sibilia-ghost").formParam("writerModel", "fake").formParam("rankerModel", "")
+                .formParam("lengthScale", "1.0").formParam("targetDurationMinutes", "20").formParam("minItems", "3")
+                .formParam("retainEpisodes", "30").formParam("cron", "0 6 * * *").formParam("enabled", "on")
+                .post("/admin/shows/" + show.id).then().statusCode(200).body(containsString("sibilia-ghost"));
+    }
 }

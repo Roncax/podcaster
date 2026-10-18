@@ -21,6 +21,7 @@ import org.roncax.podcaster.prompts.PromptRegistry;
 import org.roncax.podcaster.publishing.AudioStorage;
 import org.roncax.podcaster.runs.CronValidator;
 import org.roncax.podcaster.runs.ShowScheduler;
+import org.roncax.podcaster.tts.RoutingTtsEngine;
 import org.roncax.podcaster.tts.TtsEngine;
 import org.roncax.podcaster.util.Exceptions;
 
@@ -99,7 +100,11 @@ public class ShowService {
         CronValidator.validate(r.cron()).ifPresent(errors::add);
         try {
             Set<String> voices = tts.voices();
-            if (!voices.contains(r.voiceId())) {
+            // Sibilia's listing failed (cloud down, token expired): keep a Sibilia voice rather than block every save
+            boolean sibiliaUnlisted = RoutingTtsEngine.isSibilia(r.voiceId()) && voices.stream().noneMatch(RoutingTtsEngine::isSibilia);
+            if (sibiliaUnlisted) {
+                LOG.warnf("Could not verify voice %s: Sibilia voices unavailable", r.voiceId());
+            } else if (!voices.contains(r.voiceId())) {
                 errors.add("voiceId '" + r.voiceId() + "' is not available; available: " + voices);
             }
         } catch (Exception e) {
