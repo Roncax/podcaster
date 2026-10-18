@@ -77,3 +77,6 @@ node_modules/
 
 # Synology deployment data
 deploy/synology/data/
+
+# Cloud TTS (Sibilia on Modal) local venv
+cloud/sibilia/.venv/
