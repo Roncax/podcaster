@@ -56,7 +56,8 @@ public class VoiceDryRun {
     public TestSession.Clip execute(Prepared p) throws Exception {
         PodcasterConfig.Tts cfg = config.tts();
         String text = TtsTextNormalizer.normalize(p.text(), p.language());
-        List<TtsChunk> chunks = ScriptChunker.chunk(List.of(text), tts.limits(p.voiceId()).chunkChars(), cfg.chunkPause(), cfg.segmentPause());
+        TtsLimits limits = tts.limits(p.voiceId());
+        List<TtsChunk> chunks = ScriptChunker.chunk(List.of(text), limits.chunkChars(), limits.maxChunkChars(), cfg.chunkPause(), cfg.segmentPause());
         VoiceConfig voice = new VoiceConfig(p.voiceId(), p.lengthScale());
         List<byte[]> wavs = new ArrayList<>();
         for (TtsChunk chunk : chunks) wavs.add(tts.synthesize(chunk.text(), voice));

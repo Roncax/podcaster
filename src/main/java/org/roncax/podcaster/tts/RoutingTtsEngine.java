@@ -23,8 +23,9 @@ public class RoutingTtsEngine implements TtsEngine {
     @Inject
     public RoutingTtsEngine(PodcasterConfig config) {
         this(piper(config.tts()), sibilia(config.tts()),
-                new TtsLimits(config.tts().chunkChars(), config.tts().parallelism()),
-                new TtsLimits(config.tts().sibilia().chunkChars(), config.tts().sibilia().parallelism()));
+                new TtsLimits(config.tts().chunkChars(), config.tts().maxChunkChars(), config.tts().parallelism()),
+                new TtsLimits(config.tts().sibilia().chunkChars(), config.tts().sibilia().maxChunkChars(),
+                        config.tts().sibilia().parallelism()));
     }
 
     RoutingTtsEngine(HttpTtsEngine piper, Optional<HttpTtsEngine> sibilia, TtsLimits piperLimits, TtsLimits sibiliaLimits) {

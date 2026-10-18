@@ -22,7 +22,7 @@ import org.roncax.podcaster.support.*;
 @WithTestResource(WireMockResource.class)
 @WithTestResource(org.roncax.podcaster.support.PostgresResource.class)
 class TtsStageVoiceTest {
-    /** Nine ~100-character sentences: 2 chunks at Piper's 500 characters, 3+ at Sibilia's 300. */
+    /** Nine ~100-character sentences: 2 chunks at Piper's 500/600 characters, 3+ at Sibilia's 300/400. */
     static final String TEXT = String.join(" ", java.util.Collections.nCopies(9,
             "Questa è una frase di prova abbastanza lunga da occupare circa cento caratteri nel testo finale."));
 
@@ -88,7 +88,7 @@ class TtsStageVoiceTest {
         stage.execute(run);
         assertTrue(sibiliaCalls(wm) >= 3, "expected 300-char chunks, got " + sibiliaCalls(wm));
         wm.verify(0, postRequestedFor(urlEqualTo("/synthesize")));
-        assertEquals("sibilia|300", Files.readString(TtsStage.workDir(config, run.id).resolve("voice.txt")));
+        assertEquals("sibilia|300-400", Files.readString(TtsStage.workDir(config, run.id).resolve("voice.txt")));
     }
 
     @Test
@@ -110,7 +110,7 @@ class TtsStageVoiceTest {
 
         int chunks = sibiliaCalls(wm);
         assertTrue(chunks >= 3, "every chunk re-synthesized with Sibilia, got " + chunks);
-        assertEquals("sibilia|300", Files.readString(dir.resolve("voice.txt")));
+        assertEquals("sibilia|300-400", Files.readString(dir.resolve("voice.txt")));
     }
 
     @Test
@@ -119,7 +119,7 @@ class TtsStageVoiceTest {
         Path dir = TtsStage.workDir(config, run.id);
         Files.createDirectories(dir);
         Files.write(dir.resolve("chunk-0000.wav"), TestAudio.sineWav(0.5, 24000));
-        Files.writeString(dir.resolve("voice.txt"), "sibilia|300");
+        Files.writeString(dir.resolve("voice.txt"), "sibilia|300-400");
 
         stage.execute(run);
         int resumed = sibiliaCalls(wm);

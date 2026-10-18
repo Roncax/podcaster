@@ -41,6 +41,7 @@ public interface PodcasterConfig {
         String piperUrl();
         double defaultWpm();
         int chunkChars();
+        int maxChunkChars();
         int parallelism();
         Duration chunkPause();
         Duration segmentPause();
@@ -58,6 +59,7 @@ public interface PodcasterConfig {
             Optional<String> key();
             Optional<String> secret();
             int chunkChars();
+            int maxChunkChars();
             int parallelism();
             Duration requestTimeout();
         }
