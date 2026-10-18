@@ -14,8 +14,8 @@ import org.roncax.podcaster.support.TestAudio;
 
 class RoutingTtsEngineTest {
     static WireMockServer wm;
-    static final TtsLimits PIPER = new TtsLimits(500, 2);
-    static final TtsLimits SIBILIA = new TtsLimits(300, 2);
+    static final TtsLimits PIPER = new TtsLimits(500, 600, 2);
+    static final TtsLimits SIBILIA = new TtsLimits(300, 400, 2);
 
     @BeforeAll static void start() { wm = new WireMockServer(options().dynamicPort()); wm.start(); }
     @AfterAll static void stop() { wm.stop(); }

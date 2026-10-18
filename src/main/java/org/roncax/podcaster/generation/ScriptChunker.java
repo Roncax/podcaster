@@ -13,6 +13,15 @@ public final class ScriptChunker {
     private ScriptChunker() {}
 
     public static List<TtsChunk> chunk(List<String> parts, int maxChars, Duration chunkPause, Duration segmentPause) {
+        return chunk(parts, maxChars, maxChars, chunkPause, segmentPause);
+    }
+
+    /**
+     * Sentences are packed while the chunk is under {@code softChars}; the sentence that crosses it still joins the
+     * chunk if it ends within {@code hardChars}, otherwise it starts the next one. Only a sentence longer than
+     * {@code hardChars} on its own is split mid-phrase.
+     */
+    public static List<TtsChunk> chunk(List<String> parts, int softChars, int hardChars, Duration chunkPause, Duration segmentPause) {
         List<TtsChunk> chunks = new ArrayList<>();
         for (int partIndex = 0; partIndex < parts.size(); partIndex++) {
             String part = parts.get(partIndex);
@@ -22,8 +31,9 @@ public final class ScriptChunker {
                 if (p.isEmpty()) continue;
                 StringBuilder current = new StringBuilder();
                 for (String sentence : SENTENCE_END.split(p)) {
-                    for (String piece : splitLong(sentence.trim(), maxChars)) {
-                        if (!current.isEmpty() && current.length() + 1 + piece.length() > maxChars) {
+                    for (String piece : splitLong(sentence.trim(), hardChars)) {
+                        boolean fits = current.length() < softChars && current.length() + 1 + piece.length() <= hardChars;
+                        if (!current.isEmpty() && !fits) {
                             texts.add(current.toString());
                             current.setLength(0);
                         }

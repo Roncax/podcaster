@@ -139,7 +139,7 @@ Setup, once:
 Voices: `sibilia` is the model's built-in voice (stable across chunks), and `azzurra` is the built-in voice of [cartesia/azzurra-voice](https://huggingface.co/cartesia/azzurra-voice), a second Italian CSM model served by the same endpoint. **azzurra-voice is licensed CC BY-NC-SA 4.0: non-commercial use only**, so don't use it on a monetized feed. Each model runs on its own GPU worker, only while a show using it is being synthesized. Add reference voices with
 `modal run sibilia_app.py::add_voice --name anna --wav clip.wav --text "exact transcript"` (3–20 s of clean speech); it saves `anna-test.wav` so you can judge the imitation before selecting `sibilia-anna` in a show.
 
-Notes: the show's speed (`length_scale`) is ignored for Sibilia voices; chunks are 300 characters (`podcaster.tts.sibilia.chunk-chars`); the endpoint rejects requests without the token before starting any container; at most 2 GPU containers run and each stops 5 minutes after its last request.
+Notes: the show's speed (`length_scale`) is ignored for Sibilia voices; chunks aim for 300 characters and run to at most 400 to finish a sentence (`podcaster.tts.sibilia.chunk-chars` / `max-chunk-chars`; Piper: 500 / 600), so a sentence is only split if it is longer than that on its own; the endpoint rejects requests without the token before starting any container; at most 2 GPU containers run and each stops 5 minutes after its last request.
 
 ## API
 

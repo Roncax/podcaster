@@ -49,8 +49,8 @@ public class TtsStage implements Stage {
         Files.createDirectories(dir);
         PodcasterConfig.Tts cfg = config.tts();
         TtsLimits limits = tts.limits(show.voiceId);
-        resetChunksIfVoiceChanged(dir, show.voiceId + "|" + limits.chunkChars());
-        List<TtsChunk> chunks = ScriptChunker.chunk(episode.scriptParts, limits.chunkChars(), cfg.chunkPause(), cfg.segmentPause());
+        resetChunksIfVoiceChanged(dir, show.voiceId + "|" + limits.chunkChars() + "-" + limits.maxChunkChars());
+        List<TtsChunk> chunks = ScriptChunker.chunk(episode.scriptParts, limits.chunkChars(), limits.maxChunkChars(), cfg.chunkPause(), cfg.segmentPause());
         VoiceConfig voice = new VoiceConfig(show.voiceId, show.lengthScale);
 
         List<Path> files = new ArrayList<>();

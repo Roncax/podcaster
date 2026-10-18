@@ -22,7 +22,8 @@ podcaster:
   tts:
     piper-url: ${PIPER_URL:http://piper:5000}
     default-wpm: 150
-    chunk-chars: 500
+    chunk-chars: 500        # soft: a sentence crossing it still joins the chunk if it ends within max-chunk-chars
+    max-chunk-chars: 600
     parallelism: 2
     chunk-pause: 400ms
     segment-pause: 1200ms
@@ -36,6 +37,7 @@ podcaster:
       key: ${PODCASTER_SIBILIA_KEY:}
       secret: ${PODCASTER_SIBILIA_SECRET:}
       chunk-chars: 300
+      max-chunk-chars: 400
       parallelism: 2
       request-timeout: 5m
   runs:
