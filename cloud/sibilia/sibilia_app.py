@@ -29,14 +29,16 @@ web_image = (
     .uv_pip_install("fastapi[standard]==0.120.0", "numpy==2.3.4", "soundfile==0.13.1")
     .add_local_python_source("sibilia_core")
 )
-gpu_image = (
+gpu_base = (
     modal.Image.debian_slim(python_version="3.12")
     # the versions the 2026-10-17 CPU benchmark produced correct audio with
     .uv_pip_install("torch==2.14.1", "torchaudio==2.11.0", "transformers==5.20.1", "accelerate==1.15.0",
                     "huggingface_hub==2.2.0", "numpy==2.5.4", "soundfile==0.14.0")
-    .env({"HF_HOME": MODELS_DIR, "HF_HUB_OFFLINE": "1"})
-    .add_local_python_source("sibilia_core")
+    .env({"HF_HOME": MODELS_DIR})
 )
+# Local sources must be the last layer; only the download job may reach the Hub
+gpu_image = gpu_base.env({"HF_HUB_OFFLINE": "1"}).add_local_python_source("sibilia_core")
+download_image = gpu_base.env({"HF_HUB_OFFLINE": "0"}).add_local_python_source("sibilia_core")
 
 
 @app.cls(image=gpu_image, gpu="L4", volumes={MODELS_DIR: models, VOICES_ROOT: voices},
@@ -89,7 +91,7 @@ def api():
     return core.create_web_app(lambda text, voice: Sibilia().synthesize.remote(text, voice), VOICES_DIR, refresh=voices.reload)
 
 
-@app.function(image=gpu_image.env({"HF_HUB_OFFLINE": "0"}), volumes={MODELS_DIR: models}, timeout=1800)
+@app.function(image=download_image, volumes={MODELS_DIR: models}, timeout=1800)
 def download_weights():
     from huggingface_hub import snapshot_download
 
