@@ -45,9 +45,11 @@ The show page → Test tab dry-runs:
 - (2) rank/outline/script with draft or production prompts on the fetched or unused DB items
 - (3) a clip of up to 1,000 characters in the show's voice or another one
 
+**Test one prompt** (inside step 2) sends a single prompt (`rank`, one `segment` story, or `framing`) with the show's draft or production text, and shows the exact prompt sent, the raw reply and, for `rank`/`framing`, the parsed JSON or why it isn't valid. One model call, no JSON repair retry. `rank` uses the fetched or unused DB items; `segment` and `framing` use the last dry-run's outline. "Test this draft" on a show's prompt page opens it with that prompt selected.
+
 Nothing is stored, and results live in memory for 30 minutes.
 
-API: `/api/shows/{id}/test` (`GET`, `POST /sources`, `POST /prompts {mode, items}`, `POST /voice {text|part, voiceId?, lengthScale?}`, `GET /voice.wav`)
+API: `/api/shows/{id}/test` (`GET`, `POST /sources`, `POST /prompts {mode, items}`, `POST /prompt/{rank|segment|framing} {mode, items?, story?}`, `POST /voice {text|part, voiceId?, lengthScale?}`, `GET /voice.wav`)
 
 ## Voices
 

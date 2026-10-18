@@ -82,9 +82,9 @@ public class ShowPages {
 
     @GET
     @Path("/shows/{id}")
-    public TemplateInstance detail(@RestPath long id, @RestQuery String tab) {
+    public TemplateInstance detail(@RestPath long id, @RestQuery String tab, @RestQuery String prompt) {
         Show show = find(id);
-        return detailTemplate(show, tab, ShowForm.from(show), List.of(), List.of());
+        return detailTemplate(show, tab, ShowForm.from(show), List.of(), List.of(), prompt);
     }
 
     @POST
@@ -103,7 +103,7 @@ public class ShowPages {
                 errors.addAll(e.errors());
             }
         }
-        return Response.ok(detailTemplate(existing, "settings", form, errors, List.of())).build();
+        return Response.ok(detailTemplate(existing, "settings", form, errors, List.of(), null)).build();
     }
 
     @POST
@@ -137,7 +137,7 @@ public class ShowPages {
             return Response.seeOther(URI.create("/admin/shows/" + id + "?tab=sources")).build();
         } catch (InvalidRequestException e) {
             Show show = find(id);
-            return Response.ok(detailTemplate(show, "sources", ShowForm.from(show), List.of(), e.errors())).build();
+            return Response.ok(detailTemplate(show, "sources", ShowForm.from(show), List.of(), e.errors(), null)).build();
         }
     }
 
@@ -191,7 +191,9 @@ public class ShowPages {
         return Templates.list(all.stream().map(support::showCard).toList(), form, errors, models.availableNames(), support.voices());
     }
 
-    private TemplateInstance detailTemplate(Show show, String tab, ShowForm form, List<String> errors, List<String> sourceErrors) {
+    /** {@code prompt} preselects a key in the Test tab's single-prompt row (from a prompt page's "Test this draft"). */
+    private TemplateInstance detailTemplate(Show show, String tab, ShowForm form, List<String> errors, List<String> sourceErrors,
+                                            String prompt) {
         String t = tab != null && TABS.contains(tab) ? tab : (sourceErrors.isEmpty() ? "overview" : "sources");
         List<String> chips = List.of(Prompts.languageName(show.language), "Voice: " + show.voiceId, "Model: " + show.writerModel,
                 "Target " + show.targetDurationMinutes + " min", AdminSupport.cronText(show.cron));
@@ -212,7 +214,7 @@ public class ShowPages {
                             AdminSupport.when(s.lastFetchedAt), today,
                             s.lastError == null ? "OK" : AdminSupport.abbreviate(s.lastError, 80), s.lastError == null ? "ok" : "warn");
                 }).toList();
-        String testPanel = t.equals("test") ? testPages.panel(show.id, List.of()).render() : null;
+        String testPanel = t.equals("test") ? testPages.panel(show.id, List.of(), prompt).render() : null;
         return Templates.detail(show, t, chips, support.liveRun(show.id), episodes, runs, sources, sourceErrors, form,
                 "/admin/shows/" + show.id, errors, models.availableNames(), support.voices(), connectors.types(),
                 AdminSupport.cronText(show.cron), promptRows(show.id), testPanel);

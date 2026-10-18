@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.roncax.podcaster.testing.PromptDryRun;
+import org.roncax.podcaster.testing.SinglePromptRun;
 import org.roncax.podcaster.testing.TestSession;
 
 public final class TestViews {
@@ -14,9 +15,9 @@ public final class TestViews {
     public record ItemView(long id, long sourceId, String title, String url, Instant publishedAt, boolean hasFullText, int textLength) {}
     /** {@code seq} increases with every new clip; append it to {@code audioUrl} to bypass caches. */
     public record ClipView(double durationSeconds, double wordsPerMinute, String voiceId, double lengthScale, String audioUrl, long seq) {}
-    /** {@code steps} is keyed by step name (SOURCES, PROMPTS, VOICE) so JSON and Qute can both look steps up by string. */
+    /** {@code steps} is keyed by step name (SOURCES, PROMPTS, PROMPT_ONE, VOICE) so JSON and Qute can both look steps up by string. */
     public record Session(Map<String, StepView> steps, List<TestSession.SourceResult> sources, List<ItemView> items,
-                          PromptDryRun.Result dryRun, ClipView clip) {}
+                          PromptDryRun.Result dryRun, SinglePromptRun.Result singlePrompt, ClipView clip) {}
 
     public static Session of(TestSession s, String audioUrl) {
         Map<String, StepView> steps = new LinkedHashMap<>();
@@ -32,7 +33,7 @@ public final class TestViews {
         TestSession.Clip c = s.clip();
         ClipView clip = c == null ? null : new ClipView(round(c.durationSeconds()), Math.round(c.wordsPerMinute()), c.voiceId(), c.lengthScale(), audioUrl,
                 s.clipSeq());
-        return new Session(steps, f == null ? List.of() : f.sources(), items, s.dryRun(), clip);
+        return new Session(steps, f == null ? List.of() : f.sources(), items, s.dryRun(), s.singlePrompt(), clip);
     }
 
     private static double round(double v) { return Math.round(v * 10) / 10.0; }

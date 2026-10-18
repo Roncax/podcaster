@@ -69,7 +69,8 @@ public class ScriptWriter {
         return new Script(title, showNotes(framing.description(), show.language, outline, items), parts);
     }
 
-    String sources(List<Item> sourceItems) {
+    /** Source blocks for a segment prompt, each item's text trimmed to an equal share of the budget. */
+    public String sources(List<Item> sourceItems) {
         int budget = maxSourceChars / Math.max(1, sourceItems.size());
         List<String> blocks = new ArrayList<>();
         for (Item item : sourceItems) {
@@ -80,7 +81,8 @@ public class ScriptWriter {
         return String.join("\n\n---\n\n", blocks);
     }
 
-    static String tail(String text) {
+    /** Closing text of a segment, passed to the next segment's prompt as {@code previousTail}. */
+    public static String tail(String text) {
         if (text.length() <= TAIL_CHARS) return text;
         String t = text.substring(text.length() - TAIL_CHARS);
         int space = t.indexOf(' ');

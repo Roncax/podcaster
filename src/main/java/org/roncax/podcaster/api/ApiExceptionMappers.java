@@ -40,6 +40,11 @@ public class ApiExceptionMappers {
     }
 
     @ServerExceptionMapper
+    public RestResponse<ErrorBody> missingTestInput(org.roncax.podcaster.testing.MissingTestInputException e) {
+        return RestResponse.status(Response.Status.CONFLICT, new ErrorBody(e.getMessage(), List.of()));
+    }
+
+    @ServerExceptionMapper
     public RestResponse<ErrorBody> testStepBusy(org.roncax.podcaster.testing.TestStepBusyException e) {
         return RestResponse.status(Response.Status.CONFLICT, new ErrorBody(e.getMessage(), List.of()));
     }
