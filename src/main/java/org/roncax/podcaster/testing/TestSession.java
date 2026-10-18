@@ -8,7 +8,7 @@ import org.roncax.podcaster.domain.Item;
 
 /** One show's dry-run state, in memory only. Items are transient (never persisted). */
 public final class TestSession {
-    public enum Step { SOURCES, PROMPTS, VOICE }
+    public enum Step { SOURCES, PROMPTS, PROMPT_ONE, VOICE }
     public enum Status { IDLE, RUNNING, DONE, FAILED }
 
     public record StepState(Status status, String error) {
@@ -21,12 +21,17 @@ public final class TestSession {
     public record PromptInput(String mode, String items) {}
     /** Last voice-step form values as submitted (raw strings, so invalid input survives a validation error). */
     public record VoiceInput(String text, String voiceId, String lengthScale) {}
+    /** Last single-prompt form values as submitted (raw strings). */
+    public record SingleInput(String key, String mode, String items, String story) {}
 
     private final long showId;
     private final Map<Step, StepState> states = new EnumMap<>(Step.class);
     private volatile Instant touchedAt = Instant.now();
     private Fetched fetched;
     private PromptDryRun.Result dryRun;
+    private List<Item> dryRunItems = List.of();
+    private SinglePromptRun.Result singlePrompt;
+    private SingleInput singleInput;
     private Clip clip;
     private long clipSeq;
     private PromptInput promptInput;
@@ -62,17 +67,28 @@ public final class TestSession {
     public synchronized Fetched fetched() { return fetched; }
     public synchronized Clip clip() { return clip; }
     public synchronized PromptDryRun.Result dryRun() { return dryRun; }
+    /** The candidate items the last dry-run used (transient or detached; never serialized). */
+    public synchronized List<Item> dryRunItems() { return dryRunItems; }
+    public synchronized SinglePromptRun.Result singlePrompt() { return singlePrompt; }
 
     /** A new fetch invalidates results built on the previous items. */
     public synchronized void fetched(Fetched value) {
         fetched = value;
         dryRun = null;
+        dryRunItems = List.of();
+        singlePrompt = null;
         clip = null;
         states.put(Step.PROMPTS, StepState.IDLE);
+        states.put(Step.PROMPT_ONE, StepState.IDLE);
         states.put(Step.VOICE, StepState.IDLE);
     }
 
-    public synchronized void dryRun(PromptDryRun.Result value) { dryRun = value; }
+    public synchronized void dryRun(PromptDryRun.Result value, List<Item> items) {
+        dryRun = value;
+        dryRunItems = List.copyOf(items);
+    }
+
+    public synchronized void singlePrompt(SinglePromptRun.Result value) { singlePrompt = value; }
     /** Each stored clip gets a new sequence number, used to cache-bust its audio URL. */
     public synchronized void clip(Clip value) {
         clip = value;
@@ -84,4 +100,6 @@ public final class TestSession {
     public synchronized void promptInput(PromptInput value) { promptInput = value; }
     public synchronized VoiceInput voiceInput() { return voiceInput; }
     public synchronized void voiceInput(VoiceInput value) { voiceInput = value; }
+    public synchronized SingleInput singleInput() { return singleInput; }
+    public synchronized void singleInput(SingleInput value) { singleInput = value; }
 }

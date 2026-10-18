@@ -76,7 +76,7 @@ public class ShowPromptPages {
                 "shows", k.dbKey(), k.description(), "production v" + production + " · draft v" + labels.get(PromptLabel.DRAFT),
                 null, true, versions, shown, "v" + shown + " compared with production (v" + production + ")",
                 productionBody, shownBody, PromptPages.diffRows(productionBody, shownBody),
-                editorBody, note, errors, PromptPages.variables(k), base(show.id, k) + "/reset", "/admin/shows/" + show.id + "?tab=test"));
+                editorBody, note, errors, PromptPages.variables(k), base(show.id, k) + "/reset", "/admin/shows/" + show.id + "?tab=test&prompt=" + k.dbKey()));
     }
 
     private static String base(long id, PromptKey k) { return "/admin/shows/" + id + "/prompts/" + k.dbKey(); }

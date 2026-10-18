@@ -53,6 +53,34 @@
       {/for}
     </div>
     {/if}
+
+    <div class="flex flex-col gap-2 border-t border-line pt-3">
+      <div class="flex flex-wrap items-center gap-3">
+        <h3 class="m-0 text-sm font-semibold">Test one prompt</h3>
+        <span class="mono text-xs text-muted">{session.steps.get('PROMPT_ONE').status}</span>
+      </div>
+      <p class="m-0 text-xs text-muted">One model call with a single prompt: see exactly what is sent and the raw reply. rank uses the items chosen here; segment and framing need a prompt dry-run first.</p>
+      <form method="post" action="/admin/shows/{showId}/test/prompt" hx-post="/admin/shows/{showId}/test/prompt" hx-target="#test-panel" hx-swap="outerHTML" class="flex flex-wrap items-end gap-2">
+        <label class="field"><span class="field-label">Prompt</span><select class="field-input" name="key">{#for k in promptKeys}<option value="{k}"{#if k == form.singleKey} selected{/if}>{k}</option>{/for}</select></label>
+        <label class="field"><span class="field-label">Version</span><select class="field-input" name="mode"><option value="draft" {#if form.singleMode == 'draft'}selected{/if}>Draft</option><option value="production" {#if form.singleMode == 'production'}selected{/if}>Production</option></select></label>
+        <label class="field"><span class="field-label">Items (rank)</span><select class="field-input" name="items">
+          <option value="session" {#if session.items.isEmpty()}disabled{/if} {#if form.singleItems == 'session'}selected{/if}>Fetched in step 1</option>
+          <option value="database" {#if form.singleItems == 'database'}selected{/if}>Unused in database</option></select></label>
+        <label class="field"><span class="field-label">Story (segment)</span><select class="field-input" name="story" {#if stories.isEmpty()}disabled{/if}>{#for st in stories}<option value="{st_index}" {#if st_index == form.story}selected{/if}>{st_count}. {st}</option>{/for}</select></label>
+        <button type="submit" class="btn btn-secondary" {#if running}disabled{/if}>Run prompt</button>
+      </form>
+      {#if session.steps.get('PROMPT_ONE').error}<p class="m-0 rounded-lg bg-fail-bg px-3 py-2 text-sm text-fail">{session.steps.get('PROMPT_ONE').error}</p>{/if}
+      {#if session.singlePrompt}
+      <div class="flex flex-col gap-2 rounded-xl bg-ground p-4 text-sm">
+        <p class="m-0"><strong class="mono">{session.singlePrompt.key} · {session.singlePrompt.mode} v{session.singlePrompt.version}</strong>{#if session.singlePrompt.story != null} <span class="text-xs text-muted">· story {session.singlePrompt.story.plus(1)}</span>{/if}</p>
+        <details><summary class="cursor-pointer text-xs text-muted">Prompt sent</summary><pre class="mono m-0 mt-2 overflow-x-auto whitespace-pre-wrap text-[12.5px]">{session.singlePrompt.prompt}</pre></details>
+        <span class="text-xs text-muted">Reply</span>
+        <pre class="mono m-0 overflow-x-auto whitespace-pre-wrap text-[12.5px]">{session.singlePrompt.reply}</pre>
+        {#if session.singlePrompt.parsed}<span class="text-xs text-muted">Parsed JSON</span><pre class="mono m-0 overflow-x-auto whitespace-pre-wrap text-[12.5px]">{session.singlePrompt.parsed}</pre>{/if}
+        {#if session.singlePrompt.parseError}<p class="m-0 rounded-lg bg-fail-bg px-3 py-2 text-fail">Not valid JSON: {session.singlePrompt.parseError}</p>{/if}
+      </div>
+      {/if}
+    </div>
   </div>
 
   <div class="card">

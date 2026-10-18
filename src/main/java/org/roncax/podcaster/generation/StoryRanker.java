@@ -15,11 +15,16 @@ public class StoryRanker {
     private static final int SNIPPET_CHARS = 500;
 
     public Selection rank(ChatModel model, PromptSet prompts, String showName, String language, String focusPrompt, List<Item> candidates) {
+        Selection raw = JsonChat.ask(model, prompt(prompts, showName, language, focusPrompt, candidates), Selection.class, prompts);
+        return sanitize(raw, candidates);
+    }
+
+    /** The rendered rank prompt for these candidates, exactly as {@link #rank} sends it. */
+    public static String prompt(PromptSet prompts, String showName, String language, String focusPrompt, List<Item> candidates) {
         List<String> lines = candidates.stream()
                 .map(i -> "[id=" + i.id + "] " + i.title + " — " + snippet(i.bestText()))
                 .toList();
-        Selection raw = JsonChat.ask(model, Prompts.rank(prompts, showName, language, focusPrompt, lines), Selection.class, prompts);
-        return sanitize(raw, candidates);
+        return Prompts.rank(prompts, showName, language, focusPrompt, lines);
     }
 
     static Selection sanitize(Selection raw, List<Item> candidates) {

@@ -9,6 +9,7 @@ import java.util.List;
 import org.jboss.resteasy.reactive.RestPath;
 import org.jboss.resteasy.reactive.RestResponse;
 import org.roncax.podcaster.domain.Show;
+import org.roncax.podcaster.prompts.PromptKey;
 import org.roncax.podcaster.prompts.PromptResolver;
 import org.roncax.podcaster.testing.*;
 
@@ -20,6 +21,7 @@ public class TestResource {
     @Inject SourceDryRun sources;
     @Inject PromptDryRun prompts;
     @Inject VoiceDryRun voice;
+    @Inject SinglePromptRun single;
 
     @GET
     public TestViews.Session get(@RestPath long id) {
@@ -47,7 +49,23 @@ public class TestResource {
         PromptDryRun.ItemsSource items = parse(PromptDryRun.ItemsSource.class, request == null ? null : request.items(),
                 PromptDryRun.ItemsSource.SESSION, "items");
         PromptDryRun.Prepared prepared = prompts.prepare(id, mode, items, store.session(id));
-        runner.start(id, TestSession.Step.PROMPTS, s -> s.dryRun(prompts.execute(prepared)));
+        runner.start(id, TestSession.Step.PROMPTS, s -> s.dryRun(prompts.execute(prepared), prepared.candidates()));
+        return RestResponse.status(Response.Status.ACCEPTED, get(id));
+    }
+
+    public record SinglePromptRequest(String mode, String items, Integer story) {}
+
+    @POST
+    @Path("/prompt/{key}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public RestResponse<TestViews.Session> singlePrompt(@RestPath long id, @RestPath String key, SinglePromptRequest request) {
+        requireShow(id);
+        PromptKey k = PromptKey.fromDb(key).orElseThrow(() -> new InvalidRequestException(List.of("Unknown prompt '" + key + "'")));
+        PromptResolver.Mode mode = parse(PromptResolver.Mode.class, request == null ? null : request.mode(), PromptResolver.Mode.DRAFT, "mode");
+        PromptDryRun.ItemsSource items = parse(PromptDryRun.ItemsSource.class, request == null ? null : request.items(),
+                PromptDryRun.ItemsSource.SESSION, "items");
+        SinglePromptRun.Prepared prepared = single.prepare(id, k, mode, items, request == null ? null : request.story(), store.session(id));
+        runner.start(id, TestSession.Step.PROMPT_ONE, s -> s.singlePrompt(single.execute(prepared)));
         return RestResponse.status(Response.Status.ACCEPTED, get(id));
     }
 
